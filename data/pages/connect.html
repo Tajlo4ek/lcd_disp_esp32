@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Connect</title>
+
+    <style type="text/css">
+        body {
+            background-color: RGB(37, 37, 37);
+        }
+        
+        select,
+        input,
+        button {
+            color: rgb(153, 153, 153);
+            background-color: RGB(49, 51, 53);
+        }
+        
+        legend,
+        label {
+            color: rgb(153, 153, 153);
+        }
+    </style>
+</head>
+
+<body>
+
+    <script>
+        window.onload = function() {
+            GetSSIDs();
+        }
+
+        function GetSSIDs() {
+
+            SendRequest(null, "/connect/getSSID", function() {
+                if (this.status != 200) {
+                    return;
+                }
+
+                let json = JSON.parse(this.response);
+
+                let selectSSID = document.getElementById("selectSSID");
+                json.SSIDs.forEach(ssid => {
+                    let opt = document.createElement("option");
+                    opt.value = ssid;
+                    opt.innerText = ssid;
+                    selectSSID.appendChild(opt);
+                });
+            });
+        }
+
+        function SaveWiFiData() {
+            let ssidElem = document.getElementById("selectSSID");
+            let passElem = document.getElementById("passwordWiFi");
+
+            let formData = new FormData();
+            formData.append("ssid", ssidElem.options[ssidElem.selectedIndex].value);
+            formData.append("pass", passElem.value);
+
+            SendRequest(formData, "/connect/setWiFi", function() {
+                if (this.status != 200) {
+                    return;
+                }
+
+                alert(this.response);
+            });
+        }
+
+        function SendRequest(formData, url, onload) {
+            let request = new XMLHttpRequest();
+            request.open("POST", url, false);
+            request.onloadend = onload;
+            request.send(formData);
+        }
+    </script>
+
+    <fieldset style="margin: auto; width: 290px;">
+        <legend>WiFi connect</legend>
+        <label>
+            <pre>ssid:      <select style="width: 208px;" id="selectSSID"></select></pre>
+        </label>
+        <label>
+            <pre>password:  <input type="password" style="width: 200px;" id="passwordWiFi"></pre>
+        </label>
+        <button style="float: right;" onclick="SaveWiFiData()">Connect</button>
+    </fieldset>
+
+</body>
+
+</html>

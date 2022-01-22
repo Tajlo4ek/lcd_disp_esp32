@@ -1,0 +1,211 @@
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/codemirror.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/mode/htmlmixed/htmlmixed.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/mode/css/css.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.62.3/theme/darcula.min.css" />
+
+    <style type="text/css">
+        li {
+            color: rgb(153, 153, 153);
+            font-size: 16;
+            list-style-type: none;
+        }
+        
+        li.file:hover {
+            text-decoration: underline;
+        }
+        
+        ul {
+            margin-left: 5px;
+            padding-left: 5px;
+        }
+        
+        body {
+            background-color: RGB(37, 37, 37);
+        }
+        
+        button {
+            color: rgb(153, 153, 153);
+            background-color: RGB(49, 51, 53);
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <script>
+        var codeEditor;
+        var labelFileName;
+        var openFileName;
+
+        window.onload = function() {
+            let taCode = document.getElementById("code");
+            labelFileName = document.getElementById("labelFileName");
+
+            codeEditor = CodeMirror.fromTextArea(taCode, {
+                lineNumbers: true,
+                mode: "text/html",
+                theme: "darcula"
+            });
+
+            codeEditor.setSize("null", "95%");
+
+            GetFilesystemList();
+            SetFileView("none", "");
+        }
+
+
+        function GetFilesystemList() {
+
+            SendRequest(null, "/edit/getFiles", function() {
+                if (this.status != 200) {
+                    return;
+                }
+
+                let json = JSON.parse(this.response);
+
+                let fileList = document.getElementById("fileList");
+                if (fileList != null) {
+                    fileList.remove();
+                }
+
+                let fileListDiv = document.getElementById("fileListDiv");
+                fileList = document.createElement("ul");
+                fileList.id = "fileList";
+                fileListDiv.append(fileList);
+                CreateUL(fileList, json, "");
+            });
+        }
+
+        function CreateUL(parent, data, dirName) {
+            data.files.forEach(name => {
+                let li = document.createElement("li");
+                li.textContent = name;
+                li.className = "file";
+                li.title = dirName + "/";
+                li.onclick = GetFileData;
+                parent.append(li);
+            });
+
+            data.dirs.forEach(dir => {
+                let li = document.createElement("li");
+                li.className = "dir";
+                li.textContent = dir.name + "/";
+                let ul = document.createElement("ul");
+                CreateUL(ul, dir.data, dirName + "/" + dir.name);
+                li.append(ul);
+                parent.append(li);
+            });
+        }
+
+        function GetFileData() {
+
+            let fileName = this.title + this.textContent;
+
+            let formData = new FormData();
+            formData.append("name", fileName);
+
+            SendRequest(formData,
+                "/edit/getFileData",
+                function() {
+                    SetFileView(fileName, this.responseText);
+                });
+        }
+
+        function CloseFileView() {
+            SetFileView("none", "");
+        }
+
+        function SaveFile() {
+            if (openFileName == "none") {
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("name", openFileName);
+            formData.append("data", codeEditor.getValue());
+
+            SendRequest(formData, "/edit/saveFileData", null);
+        }
+
+        function CreateFile() {
+            let filename = prompt("Create file:", "");
+            if (filename.startsWith("/") == false) {
+                filename = "/" + filename;
+            }
+            if (filename.indexOf(".") == -1) {
+                filename += ".txt";
+            } else {
+                if (filename.indexOf(".") < filename.lastIndexOf("/")) {
+                    alert("Bad file name");
+                    return;
+                }
+            }
+
+            if (filename.length > 31) {
+                alert("Max filename length = 31");
+                return;
+            }
+
+            SetFileView(filename, filename);
+            SaveFile();
+            GetFilesystemList();
+        }
+
+        function DeleteFile() {
+
+            if (openFileName == "none") {
+                return;
+            }
+
+            let res = confirm("Are you sure to delete file: " + openFileName);
+            if (res == false) {
+                return;
+            }
+
+            let formData = new FormData();
+            formData.append("name", openFileName);
+            SendRequest(formData,
+                "/edit/deleteFile",
+                function() {
+                    SetFileView("none", "");
+                    GetFilesystemList();
+                });
+        }
+
+        function SetFileView(name, data) {
+            openFileName = name;
+            labelFileName.textContent = "open file: " + openFileName;
+            codeEditor.setValue(data);
+        }
+
+        function SendRequest(formData, url, onload) {
+            let request = new XMLHttpRequest();
+            request.open("POST", url, false);
+            request.onloadend = onload;
+            request.send(formData);
+        }
+    </script>
+
+    <div style="float:left; width:20%;" id="fileListDiv">
+        <label style="color: rgb(153, 153, 153);">Filesystem:</label>
+    </div>
+
+    <div style="float: left; width:80%;">
+        <div style="margin-bottom:10px">
+            <button onclick="SaveFile()">Save</button>
+            <button onclick="CloseFileView()">Close</button>
+            <button onclick="CreateFile()">Create</button>
+            <button onclick="DeleteFile()">Delete</button>
+            <label style="color: rgb(153, 153, 153);" id="labelFileName">open file: none</label>
+        </div>
+        <textarea id="code"></textarea>
+    </div>
+
+</body>

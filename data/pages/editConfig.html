@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Config editor</title>
+
+    <style type="text/css">
+        body {
+            background-color: RGB(37, 37, 37);
+        }
+        
+        select,
+        input,
+        button {
+            color: rgb(153, 153, 153);
+            background-color: RGB(49, 51, 53);
+        }
+        
+        td,
+        legend,
+        label {
+            color: rgb(153, 153, 153);
+        }
+    </style>
+
+    <script>
+        window.onload = function() {
+            LoadConfig();
+        }
+
+        function LoadConfig() {
+
+            let clockForm = new FormData();
+            clockForm.append("name", "{main_screen_config}");
+            SendRequest(clockForm, "/edit/getFileData", LoadConfigClock);
+
+            let spectrumForm = new FormData();
+            spectrumForm.append("name", "{spectrum_config}");
+            SendRequest(spectrumForm, "/edit/getFileData", LoadConfigSpectrum);
+        }
+
+        function LoadConfigClock() {
+            let json = JSON.parse(this.responseText);
+            document.getElementById("mainScreenBackColor").value = rgbToHex(json.backColor);
+            document.getElementById("mainScreenMainColor").value = rgbToHex(json.clockMainColor);
+            document.getElementById("mainScreenSecondColor").value = rgbToHex(json.clockSecondColor);
+            document.getElementById("mainScreenErrorColor").value = rgbToHex(json.errorColor);
+        }
+
+        function LoadConfigSpectrum() {
+            let json = JSON.parse(this.responseText);
+            document.getElementById("specBackColor").value = rgbToHex(json.backColor);
+            document.getElementById("specLowColor").value = rgbToHex(json.lowColor);
+            document.getElementById("specMediumColor").value = rgbToHex(json.mediumColor);
+            document.getElementById("specHighColor").value = rgbToHex(json.highColor);
+            document.getElementById("specMaxColor").value = rgbToHex(json.maxColor);
+        }
+
+        function SetConfigClock() {
+
+            let config = {
+                backColor: HexToRGB(document.getElementById("mainScreenBackColor").value),
+                clockMainColor: HexToRGB(document.getElementById("mainScreenMainColor").value),
+                clockSecondColor: HexToRGB(document.getElementById("mainScreenSecondColor").value),
+                errorColor: HexToRGB(document.getElementById("mainScreenErrorColor").value),
+            }
+
+            let formData = new FormData();
+            formData.append("name", "{main_screen_config}");
+            formData.append("data", JSON.stringify(config));
+            SendRequest(formData, "/edit/saveFileData", function() {
+                SendResetCommand()
+            });
+        }
+
+        function SetConfigSpectrum() {
+            let config = {
+                backColor: HexToRGB(document.getElementById("specBackColor").value),
+                lowColor: HexToRGB(document.getElementById("specLowColor").value),
+                mediumColor: HexToRGB(document.getElementById("specMediumColor").value),
+                highColor: HexToRGB(document.getElementById("specHighColor").value),
+                maxColor: HexToRGB(document.getElementById("specMaxColor").value),
+            }
+
+            let formData = new FormData();
+            formData.append("name", "{spectrum_config}");
+            formData.append("data", JSON.stringify(config));
+            SendRequest(formData, "/edit/saveFileData", function() {
+                SendResetCommand()
+            });
+        }
+
+        function HexToRGB(hex) {
+            let r = 0;
+            let g = 0;
+            let b = 0;
+
+            // 3 digits
+            if (hex.length == 4) {
+                r = "0x" + hex[1] + hex[1];
+                g = "0x" + hex[2] + hex[2];
+                b = "0x" + hex[3] + hex[3];
+
+                // 6 digits
+            } else if (hex.length == 7) {
+                r = "0x" + hex[1] + hex[2];
+                g = "0x" + hex[3] + hex[4];
+                b = "0x" + hex[5] + hex[6];
+            }
+
+            let rgb = {
+                red: parseInt(r).toString(10),
+                green: parseInt(g).toString(10),
+                blue: parseInt(b).toString(10),
+            }
+
+            return rgb;
+        }
+
+        function SendResetCommand() {
+            let formData = new FormData();
+            formData.append("command", "{reload-command}");
+            SendRequest(formData, "/monitor/sendCommand", null);
+        }
+
+        function SendRequest(formData, url, onload) {
+            let request = new XMLHttpRequest();
+            request.open("POST", url, false);
+            request.onloadend = onload;
+            request.send(formData);
+        }
+
+        function rgbToHex(rgbJson) {
+            return "#" +
+                componentToHex(parseInt(rgbJson.red)) +
+                componentToHex(parseInt(rgbJson.green)) +
+                componentToHex(parseInt(rgbJson.blue));
+        }
+
+        function componentToHex(c) {
+            var hex = c.toString(16);
+            return hex.length == 1 ? "0" + hex : hex;
+        }
+    </script>
+</head>
+
+<body>
+    <fieldset style="margin: auto; width: 290px;">
+        <legend>Digital clock colors</legend>
+        <table>
+            <tr>
+                <td style="width: 130px;">Background color</td>
+                <td><input type="color" id="mainScreenBackColor"></td>
+            </tr>
+            <tr>
+                <td style="width: 130px;">Clock main color</td>
+                <td><input type="color" id="mainScreenMainColor"></td>
+            </tr>
+            <tr>
+                <td style="width: 130px;">Clock second color</td>
+                <td><input type="color" id="mainScreenSecondColor"></td>
+            </tr>
+            <tr>
+                <td style="width: 130px;">Clock second color</td>
+                <td><input type="color" id="mainScreenErrorColor"></td>
+            </tr>
+        </table>
+        <button style="float: right; width: 75px;" onclick="SetConfigClock()">Set</button>
+    </fieldset>
+
+    <div style="display: block; height: 20px;"></div>
+
+    <fieldset style="margin: auto; width: 290px;">
+        <legend>Spectrum colors</legend>
+        <table>
+            <tr>
+                <td style="width: 130px;">Background color</td>
+                <td><input type="color" id="specBackColor"></td>
+            </tr>
+            <tr>
+                <td style="width: 130px;">Min color</td>
+                <td><input type="color" id="specLowColor"></td>
+            </tr>
+            <tr>
+                <td style="width: 130px;">Medium color</td>
+                <td><input type="color" id="specMediumColor"></td>
+            </tr>
+            <tr>
+                <td style="width: 130px;">High color</td>
+                <td><input type="color" id="specHighColor"></td>
+            </tr>
+            <tr>
+                <td style="width: 130px;">Max color</td>
+                <td><input type="color" id="specMaxColor"></td>
+            </tr>
+        </table>
+        <button style="float: right; width: 75px;" onclick="SetConfigSpectrum()">Set</button>
+    </fieldset>
+</body>
+
+</html>
