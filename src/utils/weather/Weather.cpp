@@ -19,10 +19,10 @@ namespace Weather
             return weatherData;
         }
 
-        auto host = String(F("api.openweathermap.org")).c_str();
+        String host = String(F("api.openweathermap.org"));
         WiFiClient client;
 
-        if (client.connect(host, 80, 2000) == 0)
+        if (client.connect(host.c_str(), 80) == 0)
         {
             SetAbortWeather(weatherData, F("cannot connect to server"));
             isOk = false;
@@ -30,18 +30,18 @@ namespace Weather
         }
 
         client.print(F("GET "));
-        client.print(F("/data/2.5/weather?q="));
-        client.print(city);
-        client.print(F("&appid="));
+        client.print(F("/data/2.5/weather?appid="));
         client.print(apiKey);
-        client.println(F(" HTTP/1.1"));
+        client.print(F("&q="));
+        client.print(city);
 
+        client.println(F(" HTTP/1.1"));
         client.print(F("Host: "));
         client.println(host);
         client.println(F("Connection: close"));
         client.println();
 
-        delay(1000);
+        delay(3000);
 
         String json;
         while (client.available())
@@ -50,6 +50,7 @@ namespace Weather
         }
         json += '}';
 
+        client.stop();
         ParseWeather(json, weatherData, isOk);
 
         return weatherData;
