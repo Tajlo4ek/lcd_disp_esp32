@@ -11,6 +11,11 @@ namespace Controls
         this->clockSecondColor = DrawUtils::Get565Color(0, 200, 0);
         this->nowMinutes = 0;
         this->nowHours = 0;
+        this->needDots = false;
+
+        this->minutesChanged = false;
+        this->hoursChanged = false;
+        this->dotsChanged = false;
 
         this->numSpace = (int)(rect.width * 0.02F);
 
@@ -45,62 +50,78 @@ namespace Controls
         this->clockSecondColor = color;
     }
 
-    void DigitalClock::ReDraw()
+    void DigitalClock::Draw()
     {
-        ClearRect();
-
-        if (isVisible == false || isScreenVisible == false)
-        {
-            return;
-        }
-
-        DrawTime(nowHours, nowMinutes, false);
-    }
-
-    void DigitalClock::DrawTime(byte hours, byte minutes, bool needDots)
-    {
-        if (this->isVisible == false)
-        {
-            return;
-        }
-
         this->SetViewPort();
 
-        this->nowHours = hours;
-        this->nowMinutes = minutes;
-
-        DrawNum(hours / 10, this->numSpace, 0);
-        DrawNum(hours % 10, this->numSpace * 2 + this->numWidth, 0);
-
-        DrawNum(minutes / 10, controlRect.width - (this->numSpace + this->numWidth) * 2, 0);
-        DrawNum(minutes % 10, controlRect.width - (this->numSpace + this->numWidth), 0);
-
-        int heightDiv5 = this->numHeight / 5;
-        int dotRadius = heightDiv5 / 2;
-
-        if (dotRadius < 2)
+        if (this->hoursChanged)
         {
-            dotRadius = 2;
+            this->hoursChanged = false;
+
+            DrawNum(this->nowHours / 10, this->numSpace, 0);
+            DrawNum(this->nowHours % 10, this->numSpace * 2 + this->numWidth, 0);
         }
 
-        int dotX = this->dotSpacePosX + this->dotSpaceWidth / 2;
-        int dotY = this->numHeight / 2;
+        if (this->minutesChanged)
+        {
+            this->minutesChanged = false;
 
-        uint16_t dotColor = needDots ? this->mainColor : this->backColor;
+            DrawNum(this->nowMinutes / 10, controlRect.width - (this->numSpace + this->numWidth) * 2, 0);
+            DrawNum(this->nowMinutes % 10, controlRect.width - (this->numSpace + this->numWidth), 0);
+        }
 
-        this->lcd->fillEllipse(
-            dotX,
-            dotY - heightDiv5,
-            dotRadius,
-            dotRadius,
-            dotColor);
+        if (this->dotsChanged)
+        {
+            this->dotsChanged = false;
 
-        this->lcd->fillEllipse(
-            dotX,
-            dotY + heightDiv5,
-            dotRadius,
-            dotRadius,
-            dotColor);
+            int heightDiv5 = this->numHeight / 5;
+            int dotRadius = heightDiv5 / 2;
+
+            if (dotRadius < 2)
+            {
+                dotRadius = 2;
+            }
+
+            int dotX = this->dotSpacePosX + this->dotSpaceWidth / 2;
+            int dotY = this->numHeight / 2;
+
+            uint16_t dotColor = this->needDots ? this->mainColor : this->backColor;
+
+            this->lcd->fillEllipse(
+                dotX,
+                dotY - heightDiv5,
+                dotRadius,
+                dotRadius,
+                dotColor);
+
+            this->lcd->fillEllipse(
+                dotX,
+                dotY + heightDiv5,
+                dotRadius,
+                dotRadius,
+                dotColor);
+        }
+    }
+
+    void DigitalClock::SetTime(byte hours, byte minutes, bool needDots)
+    {
+        if (this->nowHours != hours)
+        {
+            this->nowHours = hours;
+            this->hoursChanged = true;
+        }
+
+        if (this->nowMinutes != minutes)
+        {
+            this->nowMinutes = minutes;
+            this->minutesChanged = true;
+        }
+
+        if (this->needDots != needDots)
+        {
+            this->needDots = needDots;
+            this->dotsChanged = true;
+        }
     }
 
     void DigitalClock::DrawNum(byte num, int x, int y) const

@@ -15,11 +15,13 @@ namespace Controls
 
     class BaseControl
     {
+    private:
+        bool isVisible;
+        bool isScreenVisible;
+
     protected:
         ControlRect controlRect;
         TFT_eSPI *lcd;
-        bool isVisible;
-        bool isScreenVisible;
 
         uint16_t backColor;
         uint16_t mainColor;
@@ -27,12 +29,14 @@ namespace Controls
         void ClearRect();
         void SetViewPort();
 
+        virtual void Draw() = 0;
+
     public:
         BaseControl(TFT_eSPI *lcd, ControlRect controlRect);
 
         virtual ~BaseControl();
 
-        virtual void ReDraw() = 0;
+        void ReDraw();
 
         void SetMainColor(uint16_t color);
         void SetBackColor(uint16_t color);

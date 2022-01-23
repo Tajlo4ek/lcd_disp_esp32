@@ -15,7 +15,7 @@ namespace Controls
         int *values;
         float scaleVal;
 
-        void DrawChart();
+        void Draw();
 
     public:
         Chart(TFT_eSPI *lcd, ControlRect rect);
@@ -23,8 +23,6 @@ namespace Controls
 
         void AddValue(const float value);
         void ResetValues();
-
-        void ReDraw() override;
     };
 
 }

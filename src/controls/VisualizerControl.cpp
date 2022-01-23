@@ -43,18 +43,8 @@ namespace Controls
         this->maxColor = maxColor;
     }
 
-    void VisualizerControl::DrawSpectrum(byte *spectrumLeft, byte *spectrumRight)
+    void VisualizerControl::Draw()
     {
-        if (isVisible == false || isScreenVisible == false)
-        {
-            for (int i = 0; i < this->spectrumLineCount; i++)
-            {
-                this->nowLeftSpectrum[i] = spectrumLeft[i];
-                this->nowRightSpectrum[i] = spectrumRight[i];
-            }
-            return;
-        }
-
         this->SetViewPort();
 
         int leftOffsetY = this->spectrumMaxSize + 1;
@@ -63,9 +53,8 @@ namespace Controls
         //left spectrum
         for (int i = 0; i < this->spectrumLineCount; i++)
         {
-            byte nowVal = this->nowLeftSpectrum[i];
-            byte nextVal = spectrumLeft[i];
-            this->nowLeftSpectrum[i] = nextVal;
+            byte nowVal = this->prevLeftSpectrum[i];
+            byte nextVal = this->nowLeftSpectrum[i];
 
             //left
             if (this->maxLeftSpectrumData[i] != 0)
@@ -142,9 +131,8 @@ namespace Controls
         //right spectrum
         for (int i = 0; i < this->spectrumLineCount; i++)
         {
-            byte nowVal = this->nowRightSpectrum[i];
-            byte nextVal = spectrumRight[i];
-            this->nowRightSpectrum[i] = nextVal;
+            byte nowVal = this->prevRightSpectrum[i];
+            byte nextVal = this->nowRightSpectrum[i];
 
             if (this->maxRightSpectrumData[i] != 0)
             {
@@ -245,6 +233,17 @@ namespace Controls
         }
     }
 
+    void VisualizerControl::SetSpectrum(byte *spectrumLeft, byte *spectrumRight)
+    {
+        for (int i = 0; i < this->spectrumLineCount; i++)
+        {
+            this->prevLeftSpectrum[i] = this->nowLeftSpectrum[i];
+            this->prevRightSpectrum[i] = this->nowRightSpectrum[i];
+            this->nowLeftSpectrum[i] = spectrumLeft[i];
+            this->nowRightSpectrum[i] = spectrumRight[i];
+        }
+    }
+
     const int VisualizerControl::GetLineCount() const
     {
         return this->spectrumLineCount;
@@ -264,12 +263,6 @@ namespace Controls
             this->nowRightSpectrum[i] = 0;
             this->maxRightSpectrumData[i] = 0;
         }
-    }
-
-    void VisualizerControl::ReDraw()
-    {
-        ClearRect();
-        DrawSpectrum(this->nowLeftSpectrum, this->nowRightSpectrum);
     }
 
     VisualizerControl::~VisualizerControl()

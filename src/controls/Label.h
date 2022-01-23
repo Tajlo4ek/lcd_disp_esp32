@@ -27,8 +27,6 @@ namespace Controls
 
         void DrawText(const String &text, TextAlignment alignment);
 
-        void ReDraw() override;
-
     protected:
         String text;
         TextSize size;

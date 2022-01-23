@@ -31,16 +31,23 @@ namespace Controls
         int dotSpaceWidth;
         int dotSpacePosX;
 
+        bool minutesChanged;
         byte nowMinutes;
+
+        bool hoursChanged;
         byte nowHours;
+
+        bool dotsChanged;
+        bool needDots;
+
+        void Draw() override;
 
     public:
         DigitalClock(TFT_eSPI *lcd, ControlRect rect);
-        void ReDraw() override;
 
         void SetClockSecondColor(uint16_t color);
 
-        void DrawTime(byte hours, byte minutes, bool needDots);
+        void SetTime(byte hours, byte minutes, bool needDots);
     };
 
 }

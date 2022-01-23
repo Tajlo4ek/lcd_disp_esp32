@@ -28,7 +28,15 @@ namespace Controls
         }
 
         isVisible = val;
-        ReDraw();
+
+        if (isVisible)
+        {
+            ReDraw();
+        }
+        else
+        {
+            ClearRect();
+        }
     }
 
     void BaseControl::SetScreenVisible(bool val)
@@ -52,6 +60,14 @@ namespace Controls
         {
             SetViewPort();
             lcd->fillRect(0, 0, controlRect.width, controlRect.height, backColor);
+        }
+    }
+
+    void BaseControl::ReDraw()
+    {
+        if (isScreenVisible && isVisible)
+        {
+            Draw();
         }
     }
 

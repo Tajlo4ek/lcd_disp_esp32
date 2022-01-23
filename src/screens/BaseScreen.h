@@ -32,8 +32,7 @@ namespace Screens
     public:
         virtual String ParseMessage(const String &message);
         virtual void ReloadConfig() = 0;
-        virtual void ReDraw() = 0;
-
+       
         void SetVisible(bool isVisible);
 
         Screen(TFT_eSPI *lcd);

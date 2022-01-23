@@ -11,6 +11,7 @@ namespace Controls
 
     void MultilineLable::Draw()
     {
+        ClearRect();
         SetViewPort();
 
         lcd->setTextSize((int)size / 8);

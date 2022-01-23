@@ -138,7 +138,7 @@ namespace Screens
             JsonParser::BuildJson(configNames, datas, configCount));
     }
 
-    void MainScreen::ReDraw()
+    void MainScreen::EnterFocus()
     {
         ClearScreen();
         this->labelMessage->ReDraw();
@@ -148,11 +148,6 @@ namespace Screens
         this->labelTemp->ReDraw();
         this->labelWeatherDescription->ReDraw();
         this->digitalClock->ReDraw();
-    }
-
-    void MainScreen::EnterFocus()
-    {
-        ReDraw();
     }
 
     void MainScreen::DrawWeather()
@@ -181,10 +176,6 @@ namespace Screens
         this->labelWeatherDescription->DrawText(this->nowWeather.description, Controls::Label::TextAlignment::Left);
     }
 
-    void MainScreen::LeaveFocus()
-    {
-    }
-
     void MainScreen::SetWeather(const Weather::WeatherData &data)
     {
         this->nowWeather = data;
@@ -199,10 +190,11 @@ namespace Screens
     void MainScreen::SetTime(const Clock::Clock &clock)
     {
         auto time = clock.GetTime();
-        this->digitalClock->DrawTime(
+        this->digitalClock->SetTime(
             (byte)time.hour,
             (byte)time.minute,
             ((int)(time.second)) % 2 == 1);
+        this->digitalClock->ReDraw();
 
         auto newDate = clock.GetDate();
         if (this->nowDate != newDate)

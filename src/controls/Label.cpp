@@ -19,20 +19,9 @@ namespace Controls
         ReDraw();
     }
 
-    void Label::ReDraw()
-    {
-        ClearRect();
-
-        if (isVisible == false || isScreenVisible == false)
-        {
-            return;
-        }
-
-        Draw();
-    }
-
     void Label::Draw()
     {
+        ClearRect();
         SetViewPort();
 
         lcd->setTextSize((int)size / 8);

@@ -14,27 +14,31 @@ namespace Controls
         uint16_t maxColor;
 
         int spectrumLineCount;
+
         byte *nowLeftSpectrum;
+        byte *prevLeftSpectrum;
         byte *maxLeftSpectrumData;
 
         byte *nowRightSpectrum;
+        byte *prevRightSpectrum;
         byte *maxRightSpectrumData;
 
         int spectrumMaxSize;
         int spectrumMaxSizeDiv3;
 
+        void Draw() override;
+
     public:
         VisualizerControl(TFT_eSPI *lcd, ControlRect rect);
         ~VisualizerControl();
 
-        void DrawSpectrum(byte *spectrumLeft, byte *spectrumRight);
         const int GetLineCount() const;
         const int GetMaxLineLength() const;
 
         void SetColors(uint16_t lowColor, uint16_t mediumColor, uint16_t highColor, uint16_t maxColor);
+        void SetSpectrum(byte *spectrumLeft, byte *spectrumRight);
 
         void Reset();
-        void ReDraw() override;
     };
 
 }

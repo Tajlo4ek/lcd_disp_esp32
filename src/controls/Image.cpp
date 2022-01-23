@@ -4,21 +4,15 @@
 
 namespace Controls
 {
-
     Image::Image(TFT_eSPI *lcd, ControlRect rect)
         : BaseControl(lcd, rect)
     {
         this->imageLen = 0;
     }
 
-    void Image::ReDraw()
+    void Image::Draw()
     {
-        ClearRect();
-
-        if (this->isVisible == false || isScreenVisible == false || this->imageLen == 0)
-        {
-            return;
-        }
+        SetViewPort();
 
         int x = 0;
         int y = 0;

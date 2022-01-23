@@ -11,10 +11,11 @@ namespace Controls
         const uint8_t *image;
         uint16_t imageLen;
 
+        void Draw() override;
+
     public:
         Image(TFT_eSPI *lcd, ControlRect rect);
 
-        void ReDraw() override;
         void DrawImage(const uint8_t *image, const uint16_t imageLen);
 
         ~Image();

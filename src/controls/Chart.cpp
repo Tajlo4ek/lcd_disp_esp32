@@ -19,15 +19,9 @@ namespace Controls
         ResetValues();
     }
 
-    void Chart::ReDraw()
-    {
-        ClearRect();
-        DrawChart();
-    }
-
     void Chart::AddValue(float value)
     {
-        DrawChart();
+        Draw();
 
         if (value > 100)
         {
@@ -53,13 +47,9 @@ namespace Controls
         }
     }
 
-    void Chart::DrawChart()
+    void Chart::Draw()
     {
-        if (isVisible == false || isScreenVisible == false)
-        {
-            return;
-        }
-
+        ClearRect();
         SetViewPort();
 
         int leftUpX = controlRect.leftUpX;
