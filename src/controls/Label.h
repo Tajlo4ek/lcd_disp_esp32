@@ -32,7 +32,7 @@ namespace Controls
         TextSize size;
         TextAlignment alignment;
 
-        virtual void Draw();
+        virtual void Draw(bool force);
     };
 
 }

@@ -8,7 +8,7 @@ namespace Controls
     class MultilineLable : public Label
     {
     private:
-        void Draw() override;
+        void Draw(bool force) override;
 
     public:
         MultilineLable(TFT_eSPI *lcd, ControlRect rect, TextSize size);

@@ -10,7 +10,7 @@ namespace Controls
         this->imageLen = 0;
     }
 
-    void Image::Draw()
+    void Image::Draw(bool force)
     {
         SetViewPort();
 

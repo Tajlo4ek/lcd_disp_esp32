@@ -2,14 +2,13 @@
 
 #include "WebServer.h"
 
-#include "Utils/FileSystem/FileSystem.h"
-//#include "Utils/Logger/Logger.h"
+#include "utils/logger/Logger.h"
 
-#include "Pages/ConnectPage.h"
-#include "Pages/MainPage.h"
-#include "Pages/MonitorPage.h"
-#include "Pages/EditPage.h"
-#include "Pages/ConfigPage.h"
+#include "pages/ConnectPage.h"
+#include "pages/MainPage.h"
+#include "pages/MonitorPage.h"
+#include "pages/EditPage.h"
+#include "pages/ConfigPage.h"
 
 namespace HttpServer
 {
@@ -36,7 +35,7 @@ namespace HttpServer
 
         if (command.isEmpty() == false && getCommandCallback != nullptr)
         {
-            //Logger::WebLog(getCommandCallback(command));
+            Logger::WebLog(getCommandCallback(command));
         }
     }
 

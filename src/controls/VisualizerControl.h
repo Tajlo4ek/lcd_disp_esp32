@@ -26,7 +26,7 @@ namespace Controls
         int spectrumMaxSize;
         int spectrumMaxSizeDiv3;
 
-        void Draw() override;
+        void Draw(bool force) override;
 
     public:
         VisualizerControl(TFT_eSPI *lcd, ControlRect rect);

@@ -9,7 +9,7 @@ namespace Controls
     {
     }
 
-    void MultilineLable::Draw()
+    void MultilineLable::Draw(bool force)
     {
         ClearRect();
         SetViewPort();

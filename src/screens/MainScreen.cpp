@@ -115,6 +115,11 @@ namespace Screens
             this->digitalClock->SetMainColor(clockMainColor);
             this->digitalClock->SetClockSecondColor(clockSecondColor);
         }
+
+        for (const auto &control : controls)
+        {
+            control->ReDraw(true);
+        }
     }
 
     void MainScreen::CreateDefaultConfig()
@@ -141,13 +146,10 @@ namespace Screens
     void MainScreen::EnterFocus()
     {
         ClearScreen();
-        this->labelMessage->ReDraw();
-        this->labelDate->ReDraw();
-        this->labelTimeSync->ReDraw();
-        this->imageWeather->ReDraw();
-        this->labelTemp->ReDraw();
-        this->labelWeatherDescription->ReDraw();
-        this->digitalClock->ReDraw();
+        for (const auto &control : controls)
+        {
+            control->ReDraw(true);
+        }
     }
 
     void MainScreen::DrawWeather()

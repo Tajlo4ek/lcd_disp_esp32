@@ -10,6 +10,7 @@
 #include "utils/json/JsonParser.h"
 #include "utils/fileSystem/FileSystem.h"
 #include "utils/FileNames.h"
+#include "utils/Commands.h"
 
 #include "utils/clock/Clock.h"
 #include "utils/wifi/NtpTime.h"
@@ -25,10 +26,15 @@ void GetTime(void *parameter);
 void TimeTick(void *parameter);
 void MutexTask(const SemaphoreHandle_t &mutex, const TickType_t blockTime, const std::function<void()> task);
 
+String CheckCommand(const String &data);
+void SetActiveScreen(int screenNum);
+
 TFT_eSPI lcd = TFT_eSPI();
 #define LCD_WIDTH 160
 #define LCD_HEIGHT 128
 #define LCD_ROTATE 3
+
+bool isSTA;
 
 #define WEATHER_CONFIG_CITY F("city")
 #define WEATHER_CONFIG_APIKEY F("apiKey")
@@ -45,11 +51,19 @@ Clock::Clock myClock(3);
 SemaphoreHandle_t timeMutex;
 
 #define SCREEN_MUTEX_WAIT 50
-Screens::MainScreen *mainScreen;
 SemaphoreHandle_t screenMutex;
+
+Screens::MainScreen *mainScreen;
+
+std::vector<Screens::Screen *> screens;
+Screens::Screen *activeScreen;
+int nowScreenNum;
 
 void setup()
 {
+    timeMutex = xSemaphoreCreateMutex();
+    screenMutex = xSemaphoreCreateMutex();
+
     Serial.begin(115200);
 
     lcd.init();
@@ -57,20 +71,19 @@ void setup()
     lcd.fillScreen(TFT_BLACK);
 
     mainScreen = new Screens::MainScreen(&lcd);
-    mainScreen->SetVisible(true);
+
+    screens.push_back(mainScreen);
+    SetActiveScreen(0);
 
     InitWifi();
-    HttpServer::Init(nullptr);
-
-    timeMutex = xSemaphoreCreateMutex();
-    screenMutex = xSemaphoreCreateMutex();
+    HttpServer::Init(CheckCommand);
 
     xTaskCreate(
         GetWeather,
         String(F("update weather")).c_str(),
         5 * 1024,
         NULL,
-        2,
+        3,
         NULL);
 
     xTaskCreate(
@@ -78,7 +91,7 @@ void setup()
         String(F("update time")).c_str(),
         2 * 1024,
         NULL,
-        2,
+        3,
         NULL);
 
     xTaskCreate(
@@ -86,13 +99,62 @@ void setup()
         String(F("set time")).c_str(),
         2 * 1024,
         NULL,
-        3,
+        4,
         NULL);
 }
 
 void loop()
 {
     HttpServer::HandleServer();
+}
+
+String CheckCommand(const String &data)
+{
+    String res = F("ok");
+
+    if (data[data.length() - 1] != COMMAND_STOP_CHAR)
+    {
+        return res;
+    }
+
+    if (data.startsWith(COMMAND_RELOAD_SCREEN))
+    {
+        MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
+                  {
+                      for (const auto &screen : screens)
+                      {
+                          screen->ReloadConfig();
+                      }
+                  });
+
+        SetActiveScreen(nowScreenNum);
+    }
+
+    return res;
+}
+
+void SetActiveScreen(int screenNum)
+{
+    if (screenNum >= (int)screens.size())
+    {
+        screenNum -= screens.size();
+    }
+    else if (screenNum < 0)
+    {
+        screenNum += screens.size();
+    }
+    nowScreenNum = screenNum;
+
+    MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
+              {
+                  for (auto &screen : screens)
+                  {
+                      screen->SetVisible(false);
+                  }
+
+                  activeScreen = screens[nowScreenNum];
+                  activeScreen->SetVisible(true);
+              });
 }
 
 void GetWeather(void *parameter)
@@ -118,8 +180,6 @@ void GetWeather(void *parameter)
             vTaskDelay(WEATHER_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
         }
     }
-
-    vTaskDelete(NULL);
 }
 
 void GetTime(void *parameter)
@@ -156,8 +216,6 @@ void GetTime(void *parameter)
             vTaskDelay(TIME_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
         }
     }
-
-    vTaskDelete(NULL);
 }
 
 void TimeTick(void *parameter)
@@ -178,12 +236,11 @@ void TimeTick(void *parameter)
 
         vTaskDelay(CLOCK_TICK_TIME_MILLISEC / portTICK_PERIOD_MS);
     }
-
-    vTaskDelete(NULL);
 }
 
 void InitWifi()
 {
+    isSTA = true;
     int connectTryes = 20;
     auto wifiConfig = WifiUtils::LoadWiFiConfig();
 
@@ -208,6 +265,7 @@ void InitWifi()
         mainScreen->SetMessage(ssid + ' ' + pass);
         WifiUtils::StartAP(ssid, pass);
         delay(1000);
+        isSTA = false;
     }
 
     mainScreen->SetMessage(String(F("IP: ")) + WifiUtils::GetIpString());

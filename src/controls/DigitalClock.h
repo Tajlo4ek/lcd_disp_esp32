@@ -40,7 +40,7 @@ namespace Controls
         bool dotsChanged;
         bool needDots;
 
-        void Draw() override;
+        void Draw(bool force) override;
 
     public:
         DigitalClock(TFT_eSPI *lcd, ControlRect rect);

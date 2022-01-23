@@ -29,14 +29,14 @@ namespace Controls
         void ClearRect();
         void SetViewPort();
 
-        virtual void Draw() = 0;
+        virtual void Draw(bool force) = 0;
 
     public:
         BaseControl(TFT_eSPI *lcd, ControlRect controlRect);
 
         virtual ~BaseControl();
 
-        void ReDraw();
+        void ReDraw(bool force = false);
 
         void SetMainColor(uint16_t color);
         void SetBackColor(uint16_t color);

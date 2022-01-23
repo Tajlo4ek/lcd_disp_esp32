@@ -50,11 +50,11 @@ namespace Controls
         this->clockSecondColor = color;
     }
 
-    void DigitalClock::Draw()
+    void DigitalClock::Draw(bool force)
     {
         this->SetViewPort();
 
-        if (this->hoursChanged)
+        if (this->hoursChanged || force)
         {
             this->hoursChanged = false;
 
@@ -62,7 +62,7 @@ namespace Controls
             DrawNum(this->nowHours % 10, this->numSpace * 2 + this->numWidth, 0);
         }
 
-        if (this->minutesChanged)
+        if (this->minutesChanged || force)
         {
             this->minutesChanged = false;
 
@@ -70,7 +70,7 @@ namespace Controls
             DrawNum(this->nowMinutes % 10, controlRect.width - (this->numSpace + this->numWidth), 0);
         }
 
-        if (this->dotsChanged)
+        if (this->dotsChanged || force)
         {
             this->dotsChanged = false;
 
@@ -266,5 +266,4 @@ namespace Controls
         }
         lcd->drawPixel(x, y, this->clockSecondColor);
     }
-
 }

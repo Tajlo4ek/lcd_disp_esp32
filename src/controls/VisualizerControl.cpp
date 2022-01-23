@@ -43,8 +43,13 @@ namespace Controls
         this->maxColor = maxColor;
     }
 
-    void VisualizerControl::Draw()
+    void VisualizerControl::Draw(bool force)
     {
+        if (force)
+        {
+            ClearRect();
+        }
+
         this->SetViewPort();
 
         int leftOffsetY = this->spectrumMaxSize + 1;

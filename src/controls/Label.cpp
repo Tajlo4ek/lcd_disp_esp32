@@ -19,7 +19,7 @@ namespace Controls
         ReDraw();
     }
 
-    void Label::Draw()
+    void Label::Draw(bool force)
     {
         ClearRect();
         SetViewPort();

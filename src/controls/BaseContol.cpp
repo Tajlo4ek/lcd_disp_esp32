@@ -63,11 +63,11 @@ namespace Controls
         }
     }
 
-    void BaseControl::ReDraw()
+    void BaseControl::ReDraw(bool force)
     {
         if (isScreenVisible && isVisible)
         {
-            Draw();
+            Draw(force);
         }
     }
 

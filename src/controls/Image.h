@@ -11,7 +11,7 @@ namespace Controls
         const uint8_t *image;
         uint16_t imageLen;
 
-        void Draw() override;
+        void Draw(bool force) override;
 
     public:
         Image(TFT_eSPI *lcd, ControlRect rect);
