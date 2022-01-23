@@ -2,6 +2,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include <functional>
 
 #include "utils/wifi/WifiUtils.h"
 #include "utils/http/HttpServer.h"
@@ -18,9 +19,11 @@
 #include <TFT_eSPI.h>
 
 void InitWifi();
+
 void GetWeather(void *parameter);
 void GetTime(void *parameter);
 void TimeTick(void *parameter);
+void MutexTask(const SemaphoreHandle_t &mutex, const TickType_t blockTime, const std::function<void()> task);
 
 TFT_eSPI lcd = TFT_eSPI();
 #define LCD_WIDTH 160
@@ -34,14 +37,16 @@ TFT_eSPI lcd = TFT_eSPI();
 
 #define NTP_SERVER_NAME F("2.ru.pool.ntp.org")
 #define TIME_UPDATE_TIME_OK 30 * 60 * 1000
-#define TIME_UPDATE_TIME_FAIL 5 * 60 * 1000
+#define TIME_UPDATE_TIME_FAIL 1 * 60 * 1000
 #define TIME_UPDATE_FAIL_COUNT 10
-#define TIME_MUTEX_WAIT 25
+#define TIME_MUTEX_WAIT 30
 #define CLOCK_TICK_TIME_MILLISEC 100
 Clock::Clock myClock(3);
-static SemaphoreHandle_t timeMutex;
+SemaphoreHandle_t timeMutex;
 
+#define SCREEN_MUTEX_WAIT 50
 Screens::MainScreen *mainScreen;
+SemaphoreHandle_t screenMutex;
 
 void setup()
 {
@@ -58,30 +63,31 @@ void setup()
     HttpServer::Init(nullptr);
 
     timeMutex = xSemaphoreCreateMutex();
+    screenMutex = xSemaphoreCreateMutex();
 
     xTaskCreate(
-        GetWeather,                          /* Task function. */
-        String(F("update weather")).c_str(), /* name of task. */
-        5 * 1024,                            /* Stack size of task */
-        NULL,                                /* parameter of the task */
-        2,                                   /* priority of the task */
-        NULL);                               /* Task handle to keep track of created task */
+        GetWeather,
+        String(F("update weather")).c_str(),
+        5 * 1024,
+        NULL,
+        2,
+        NULL);
 
     xTaskCreate(
-        GetTime,                          /* Task function. */
-        String(F("update time")).c_str(), /* name of task. */
-        2 * 1024,                         /* Stack size of task */
-        NULL,                             /* parameter of the task */
-        2,                                /* priority of the task */
-        NULL);                            /* Task handle to keep track of created task */
+        GetTime,
+        String(F("update time")).c_str(),
+        2 * 1024,
+        NULL,
+        2,
+        NULL);
 
     xTaskCreate(
-        TimeTick,                      /* Task function. */
-        String(F("set time")).c_str(), /* name of task. */
-        2 * 1024,                      /* Stack size of task */
-        NULL,                          /* parameter of the task */
-        3,                             /* priority of the task */
-        NULL);                         /* Task handle to keep track of created task */
+        TimeTick,
+        String(F("set time")).c_str(),
+        2 * 1024,
+        NULL,
+        3,
+        NULL);
 }
 
 void loop()
@@ -99,7 +105,9 @@ void GetWeather(void *parameter)
 
         bool isOk;
         auto weather = Weather::GetWether(isOk, weatherCity, weatherApiKey);
-        mainScreen->SetWeather(weather);
+
+        MutexTask(screenMutex, SCREEN_MUTEX_WAIT, [weather, isOk]()
+                  { mainScreen->SetWeather(weather); });
 
         if (isOk == true)
         {
@@ -125,22 +133,15 @@ void GetTime(void *parameter)
 
         if (isOk == true)
         {
+            MutexTask(timeMutex, TIME_MUTEX_WAIT, [ntp]()
+                      { myClock.ParseFromNtp(ntp); });
+
             if (failCount != 0)
             {
-                mainScreen->SetTimeOk(true);
+                MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
+                          { mainScreen->SetTimeOk(true); });
             }
             failCount = 0;
-
-            for (;;)
-            {
-                if (xSemaphoreTake(timeMutex, (TickType_t)TIME_MUTEX_WAIT) == pdTRUE)
-                {
-                    myClock.ParseFromNtp(ntp);
-
-                    xSemaphoreGive(timeMutex);
-                    break;
-                }
-            }
 
             vTaskDelay(TIME_UPDATE_TIME_OK / portTICK_PERIOD_MS);
         }
@@ -149,7 +150,8 @@ void GetTime(void *parameter)
             failCount++;
             if (failCount > TIME_UPDATE_FAIL_COUNT)
             {
-                mainScreen->SetTimeOk(false);
+                MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
+                          { mainScreen->SetTimeOk(false); });
             }
             vTaskDelay(TIME_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
         }
@@ -164,19 +166,15 @@ void TimeTick(void *parameter)
 
     for (;;)
     {
-        for (;;)
-        {
-            if (xSemaphoreTake(timeMutex, (TickType_t)TIME_MUTEX_WAIT) == pdTRUE)
-            {
-                auto nowMillis = millis();
-                myClock.AddMillis(nowMillis - prevMillis);
-                prevMillis = nowMillis;
-                mainScreen->SetTime(myClock);
+        MutexTask(timeMutex, TIME_MUTEX_WAIT, [&prevMillis]() mutable
+                  {
+                      auto nowMillis = millis();
+                      myClock.AddMillis(nowMillis - prevMillis);
+                      prevMillis = nowMillis;
 
-                xSemaphoreGive(timeMutex);
-                break;
-            }
-        }
+                      MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
+                                { mainScreen->SetTime(myClock); });
+                  });
 
         vTaskDelay(CLOCK_TICK_TIME_MILLISEC / portTICK_PERIOD_MS);
     }
@@ -213,4 +211,17 @@ void InitWifi()
     }
 
     mainScreen->SetMessage(String(F("IP: ")) + WifiUtils::GetIpString());
+}
+
+void MutexTask(const SemaphoreHandle_t &mutex, const TickType_t blockTime, std::function<void()> task)
+{
+    for (;;)
+    {
+        if (xSemaphoreTake(mutex, blockTime) == pdTRUE)
+        {
+            task();
+            xSemaphoreGive(mutex);
+            break;
+        }
+    }
 }
