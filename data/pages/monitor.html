@@ -71,6 +71,7 @@
 
             SendRequest(null, "/monitor/getData", function () {
                 if (this.status != 200) {
+                    setTimeout(GetData, 1000);
                     return;
                 }
 
