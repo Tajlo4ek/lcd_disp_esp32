@@ -11,11 +11,11 @@
             background-color: rgb(37, 37, 37);
             height: 99%;
         }
-        
+
         canvas {
             background-color: rgb(60, 60, 60);
         }
-        
+
         textarea {
             resize: none;
             width: 100%;
@@ -23,7 +23,7 @@
             background-color: rgb(30, 30, 30);
             color: rgb(182, 182, 182);
         }
-        
+
         label {
             width: 100%;
             display: block;
@@ -39,9 +39,10 @@
         var labelMillis;
 
         const elementCount = 60;
+        var isElemEmpty = true;
         var heapChart;
 
-        window.onload = function() {
+        window.onload = function () {
             logArea = document.getElementById("areaLog");
             labelMillis = document.getElementById("labelMillis");
 
@@ -62,16 +63,13 @@
             heapChart.options.elements.line.borderWidth = 1;
             heapChart.options.animation = false;
 
-            for (let i = 0; i < elementCount + 1; i++) {
-                AddHeapData(0);
-            }
 
             setTimeout(GetData, 1000);
         }
 
         function GetData() {
 
-            SendRequest(null, "/monitor/getData", function() {
+            SendRequest(null, "/monitor/getData", function () {
                 if (this.status != 200) {
                     return;
                 }
@@ -89,10 +87,18 @@
                 let min = uptime % 60;
                 uptime = parseInt(uptime / 60);
 
-                labelMillis.textContent = "Uptime: " + uptime + "h " + min + "m " + sec + "s " + ms + "ms";
+                labelMillis.textContent = "Uptime: " + uptime + "h " + parseNum(min, 2) + "m " + parseNum(sec, 2) + "s " + parseNum(ms, 3) + "ms";
 
                 setTimeout(GetData, 1000);
             });
+        }
+
+        function parseNum(num, minLen) {
+            let str = num.toString();
+            while (str.length < minLen) {
+                str = "0" + num;
+            }
+            return str;
         }
 
         function AddLog(newLog) {
@@ -101,7 +107,16 @@
 
         function AddHeapData(nextValue) {
             let nowData = heapChart.config.data.datasets[0].data;
-            if (nowData.length > elementCount) {
+
+            if (isElemEmpty) {
+
+                for (let i = 0; i < elementCount + 1; i++) {
+                    nowData.push(nextValue);
+                }
+                isElemEmpty = false;
+            }
+
+            while (nowData.length > elementCount) {
                 nowData.shift();
             }
             nowData.push(nextValue);

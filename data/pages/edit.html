@@ -15,20 +15,20 @@
             font-size: 16;
             list-style-type: none;
         }
-        
+
         li.file:hover {
             text-decoration: underline;
         }
-        
+
         ul {
             margin-left: 5px;
             padding-left: 5px;
         }
-        
+
         body {
             background-color: RGB(37, 37, 37);
         }
-        
+
         button {
             color: rgb(153, 153, 153);
             background-color: RGB(49, 51, 53);
@@ -44,7 +44,7 @@
         var labelFileName;
         var openFileName;
 
-        window.onload = function() {
+        window.onload = function () {
             let taCode = document.getElementById("code");
             labelFileName = document.getElementById("labelFileName");
 
@@ -63,7 +63,7 @@
 
         function GetFilesystemList() {
 
-            SendRequest(null, "/edit/getFiles", function() {
+            SendRequest(null, "/edit/getFiles", function () {
                 if (this.status != 200) {
                     return;
                 }
@@ -98,14 +98,13 @@
                 li.className = "dir";
                 li.textContent = dir.name + "/";
                 let ul = document.createElement("ul");
-                CreateUL(ul, dir.data, dirName + "/" + dir.name);
+                CreateUL(ul, dir.data, dir.name);
                 li.append(ul);
                 parent.append(li);
             });
         }
 
         function GetFileData() {
-
             let fileName = this.title + this.textContent;
 
             let formData = new FormData();
@@ -113,7 +112,7 @@
 
             SendRequest(formData,
                 "/edit/getFileData",
-                function() {
+                function () {
                     SetFileView(fileName, this.responseText);
                 });
         }
@@ -138,6 +137,7 @@
             let filename = prompt("Create file:", "");
             if (filename.startsWith("/") == false) {
                 filename = "/" + filename;
+
             }
             if (filename.indexOf(".") == -1) {
                 filename += ".txt";
@@ -173,7 +173,7 @@
             formData.append("name", openFileName);
             SendRequest(formData,
                 "/edit/deleteFile",
-                function() {
+                function () {
                     SetFileView("none", "");
                     GetFilesystemList();
                 });
