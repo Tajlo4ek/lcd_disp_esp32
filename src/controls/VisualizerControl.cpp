@@ -27,9 +27,11 @@ namespace Controls
         this->spectrumMaxSizeDiv3 = this->spectrumMaxSize / 3;
 
         this->nowLeftSpectrum = new byte[this->spectrumLineCount];
+        this->prevLeftSpectrum = new byte[this->spectrumLineCount];
         this->maxLeftSpectrumData = new byte[this->spectrumLineCount];
 
         this->nowRightSpectrum = new byte[this->spectrumLineCount];
+        this->prevRightSpectrum = new byte[this->spectrumLineCount];
         this->maxRightSpectrumData = new byte[this->spectrumLineCount];
 
         Reset();
@@ -45,12 +47,11 @@ namespace Controls
 
     void VisualizerControl::Draw(bool force)
     {
+        SetViewPort();
         if (force)
         {
             ClearRect();
         }
-
-        this->SetViewPort();
 
         int leftOffsetY = this->spectrumMaxSize + 1;
         int rightOffsetY = controlRect.height - this->spectrumMaxSize - 1;
@@ -238,7 +239,7 @@ namespace Controls
         }
     }
 
-    void VisualizerControl::SetSpectrum(byte *spectrumLeft, byte *spectrumRight)
+    void VisualizerControl::SetSpectrum(const byte *spectrumLeft, const byte *spectrumRight)
     {
         for (int i = 0; i < this->spectrumLineCount; i++)
         {
@@ -273,9 +274,11 @@ namespace Controls
     VisualizerControl::~VisualizerControl()
     {
         delete[] nowLeftSpectrum;
+        delete[] prevLeftSpectrum;
         delete[] maxLeftSpectrumData;
 
         delete[] nowRightSpectrum;
+        delete[] prevRightSpectrum;
         delete[] maxRightSpectrumData;
     }
 }

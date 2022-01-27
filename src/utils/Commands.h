@@ -3,6 +3,8 @@
 
 #define COMMAND_STOP_CHAR '|'
 #define COMMAND_SPLIT_CHAR ';'
+#define COMMAND_OK F("ok")
+#define COMMAND_FAIL F("fail")
 
 #define COMMAND_SET_MODE_SPECTRUM F("startSpectrum")
 #define COMMAND_SEND_LINE_COUNT F("line")

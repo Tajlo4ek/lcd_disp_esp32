@@ -3,19 +3,23 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <functional>
+#include <queue>
 
 #include "utils/wifi/WifiUtils.h"
 #include "utils/http/HttpServer.h"
 #include "utils/weather/Weather.h"
 #include "utils/json/JsonParser.h"
 #include "utils/fileSystem/FileSystem.h"
+
 #include "utils/FileNames.h"
 #include "utils/Commands.h"
+#include "utils/MutexUtils.h"
 
 #include "utils/clock/Clock.h"
 #include "utils/wifi/NtpTime.h"
 
 #include "screens/MainScreen.h"
+#include "screens/VisualizerScreen.h"
 
 #include <TFT_eSPI.h>
 
@@ -24,7 +28,9 @@ void InitWifi();
 void GetWeather(void *parameter);
 void GetTime(void *parameter);
 void TimeTick(void *parameter);
-void MutexTask(const SemaphoreHandle_t &mutex, const TickType_t blockTime, const std::function<void()> task);
+void UartTask(void *parameter);
+void ParseCommandTask(void *parameter);
+void ServerTask(void *parameter);
 
 String CheckCommand(const String &data);
 void SetActiveScreen(int screenNum);
@@ -45,15 +51,19 @@ bool isSTA;
 #define TIME_UPDATE_TIME_OK 30 * 60 * 1000
 #define TIME_UPDATE_TIME_FAIL 1 * 60 * 1000
 #define TIME_UPDATE_FAIL_COUNT 10
-#define TIME_MUTEX_WAIT 30
 #define CLOCK_TICK_TIME_MILLISEC 100
 Clock::Clock myClock(3);
+
+SemaphoreHandle_t screenMutex;
 SemaphoreHandle_t timeMutex;
 
-#define SCREEN_MUTEX_WAIT 50
-SemaphoreHandle_t screenMutex;
+SemaphoreHandle_t uartMutex;
+SemaphoreHandle_t commandQueueMutex;
+
+std::queue<String> commands;
 
 Screens::MainScreen *mainScreen;
+Screens::VisualizerScreen *visualizerScreen;
 
 std::vector<Screens::Screen *> screens;
 Screens::Screen *activeScreen;
@@ -63,71 +73,124 @@ void setup()
 {
     timeMutex = xSemaphoreCreateMutex();
     screenMutex = xSemaphoreCreateMutex();
+    commandQueueMutex = xSemaphoreCreateMutex();
 
     Serial.begin(115200);
+    FileSystem::Init();
 
     lcd.init();
     lcd.setRotation(LCD_ROTATE);
     lcd.fillScreen(TFT_BLACK);
 
     mainScreen = new Screens::MainScreen(&lcd);
+    visualizerScreen = new Screens::VisualizerScreen(&lcd);
 
     screens.push_back(mainScreen);
-    SetActiveScreen(0);
+    screens.push_back(visualizerScreen);
+    SetActiveScreen(1);
 
     InitWifi();
     HttpServer::Init(CheckCommand);
 
-    xTaskCreate(
-        GetWeather,
-        String(F("update weather")).c_str(),
-        5 * 1024,
-        NULL,
-        3,
-        NULL);
-
-    xTaskCreate(
-        GetTime,
-        String(F("update time")).c_str(),
-        2 * 1024,
-        NULL,
-        3,
-        NULL);
-
-    xTaskCreate(
-        TimeTick,
-        String(F("set time")).c_str(),
-        2 * 1024,
-        NULL,
-        4,
-        NULL);
+    xTaskCreate(GetWeather, String(F("update weather")).c_str(), 5 * 1024, NULL, 3, NULL);
+    xTaskCreate(GetTime, String(F("update time")).c_str(), 5 * 1024, NULL, 3, NULL);
+    xTaskCreate(TimeTick, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
+    xTaskCreate(UartTask, String(F("uart rec")).c_str(), 5 * 1024, NULL, 10, NULL);
+    xTaskCreate(ParseCommandTask, String(F("command")).c_str(), 10 * 1024, NULL, 10, NULL);
+    xTaskCreate(ServerTask, String(F("server")).c_str(), 20 * 1024, NULL, 3, NULL);
 }
 
 void loop()
 {
-    HttpServer::HandleServer();
+    vTaskDelete(NULL);
+}
+
+void ServerTask(void *parameter)
+{
+    for (;;)
+    {
+        HttpServer::HandleServer();
+        vTaskDelay(25 / portTICK_PERIOD_MS);
+    }
+}
+
+void UartTask(void *parameter)
+{
+    String serialData;
+
+    for (;;)
+    {
+        while (Serial.available())
+        {
+            char ch = (char)Serial.read();
+            serialData += ch;
+
+            if (ch == COMMAND_STOP_CHAR)
+            {
+                MutexUtils::MutexTask(commandQueueMutex, [serialData]()
+                                      { commands.push(serialData); });
+
+                serialData.clear();
+            }
+        }
+
+        vTaskDelay(5 / portTICK_PERIOD_MS);
+    }
+}
+
+void ParseCommandTask(void *parameter)
+{
+    for (;;)
+    {
+        String data;
+        int size = 0;
+
+        MutexUtils::MutexTask(commandQueueMutex, [&data, &size]() mutable
+                              {
+                                  if (commands.empty() == false)
+                                  {
+                                      size = commands.size();
+                                      data = commands.front();
+                                      commands.pop();
+                                  }
+                              });
+
+        if (data.isEmpty() == false)
+        {
+            Serial.print(CheckCommand(data));
+            Serial.print(COMMAND_STOP_CHAR);
+        }
+
+        vTaskDelay(5 / portTICK_PERIOD_MS);
+    }
 }
 
 String CheckCommand(const String &data)
 {
-    String res = F("ok");
+
+    String res = COMMAND_FAIL;
 
     if (data[data.length() - 1] != COMMAND_STOP_CHAR)
     {
         return res;
     }
 
-    if (data.startsWith(COMMAND_RELOAD_SCREEN))
+    if (data.startsWith(COMMAND_SET_MODE_SPECTRUM) ||
+        data.startsWith(COMMAND_SEND_SPECTRUM_DATA))
     {
-        MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
-                  {
-                      for (const auto &screen : screens)
-                      {
-                          screen->ReloadConfig();
-                      }
-                  });
-
-        SetActiveScreen(nowScreenNum);
+        MutexUtils::MutexTask(screenMutex, [&res, &data]() mutable
+                              { res = visualizerScreen->ParseMessage(data); });
+    }
+    else if (data.startsWith(COMMAND_RELOAD_SCREEN))
+    {
+        MutexUtils::MutexTask(screenMutex, [&res]() mutable
+                              {
+                                  for (const auto &screen : screens)
+                                  {
+                                      screen->ReloadConfig();
+                                  }
+                                  res = COMMAND_OK;
+                              });
     }
 
     return res;
@@ -135,26 +198,26 @@ String CheckCommand(const String &data)
 
 void SetActiveScreen(int screenNum)
 {
-    if (screenNum >= (int)screens.size())
-    {
-        screenNum -= screens.size();
-    }
-    else if (screenNum < 0)
-    {
-        screenNum += screens.size();
-    }
-    nowScreenNum = screenNum;
+    MutexUtils::MutexTask(screenMutex, [&screenNum]()
+                          {
+                              if (screenNum >= (int)screens.size())
+                              {
+                                  screenNum -= screens.size();
+                              }
+                              else if (screenNum < 0)
+                              {
+                                  screenNum += screens.size();
+                              }
+                              nowScreenNum = screenNum;
 
-    MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
-              {
-                  for (auto &screen : screens)
-                  {
-                      screen->SetVisible(false);
-                  }
+                              for (auto &screen : screens)
+                              {
+                                  screen->SetVisible(false);
+                              }
 
-                  activeScreen = screens[nowScreenNum];
-                  activeScreen->SetVisible(true);
-              });
+                              activeScreen = screens[nowScreenNum];
+                              activeScreen->SetVisible(true);
+                          });
 }
 
 void GetWeather(void *parameter)
@@ -168,8 +231,8 @@ void GetWeather(void *parameter)
         bool isOk;
         auto weather = Weather::GetWether(isOk, weatherCity, weatherApiKey);
 
-        MutexTask(screenMutex, SCREEN_MUTEX_WAIT, [weather, isOk]()
-                  { mainScreen->SetWeather(weather); });
+        MutexUtils::MutexTask(screenMutex, [weather, isOk]()
+                              { mainScreen->SetWeather(weather); });
 
         if (isOk == true)
         {
@@ -193,13 +256,13 @@ void GetTime(void *parameter)
 
         if (isOk == true)
         {
-            MutexTask(timeMutex, TIME_MUTEX_WAIT, [ntp]()
-                      { myClock.ParseFromNtp(ntp); });
+            MutexUtils::MutexTask(timeMutex, [ntp]()
+                                  { myClock.ParseFromNtp(ntp); });
 
             if (failCount != 0)
             {
-                MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
-                          { mainScreen->SetTimeOk(true); });
+                MutexUtils::MutexTask(screenMutex, []()
+                                      { mainScreen->SetTimeOk(true); });
             }
             failCount = 0;
 
@@ -210,8 +273,8 @@ void GetTime(void *parameter)
             failCount++;
             if (failCount > TIME_UPDATE_FAIL_COUNT)
             {
-                MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
-                          { mainScreen->SetTimeOk(false); });
+                MutexUtils::MutexTask(screenMutex, []()
+                                      { mainScreen->SetTimeOk(false); });
             }
             vTaskDelay(TIME_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
         }
@@ -224,15 +287,15 @@ void TimeTick(void *parameter)
 
     for (;;)
     {
-        MutexTask(timeMutex, TIME_MUTEX_WAIT, [&prevMillis]() mutable
-                  {
-                      auto nowMillis = millis();
-                      myClock.AddMillis(nowMillis - prevMillis);
-                      prevMillis = nowMillis;
+        MutexUtils::MutexTask(timeMutex, [&prevMillis]() mutable
+                              {
+                                  auto nowMillis = millis();
+                                  myClock.AddMillis(nowMillis - prevMillis);
+                                  prevMillis = nowMillis;
 
-                      MutexTask(screenMutex, SCREEN_MUTEX_WAIT, []()
-                                { mainScreen->SetTime(myClock); });
-                  });
+                                  MutexUtils::MutexTask(screenMutex, []()
+                                                        { mainScreen->SetTime(myClock); });
+                              });
 
         vTaskDelay(CLOCK_TICK_TIME_MILLISEC / portTICK_PERIOD_MS);
     }
@@ -269,17 +332,4 @@ void InitWifi()
     }
 
     mainScreen->SetMessage(String(F("IP: ")) + WifiUtils::GetIpString());
-}
-
-void MutexTask(const SemaphoreHandle_t &mutex, const TickType_t blockTime, std::function<void()> task)
-{
-    for (;;)
-    {
-        if (xSemaphoreTake(mutex, blockTime) == pdTRUE)
-        {
-            task();
-            xSemaphoreGive(mutex);
-            break;
-        }
-    }
 }
