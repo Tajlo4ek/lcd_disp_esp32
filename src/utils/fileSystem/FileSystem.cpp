@@ -23,35 +23,37 @@ namespace FileSystem
     {
         String data;
 
-        MutexUtils::MutexTask(fsMutex, [&fileName, &data]() mutable
-                              {
-                                  if (LITTLEFS.exists(fileName) == true)
-                                  {
-                                      File file = LITTLEFS.open(fileName, "r");
-                                      data = file.readString();
-                                      file.close();
-                                  }
-                              });
+        MutexTask(fsMutex,
+                  {
+                      if (LITTLEFS.exists(fileName) == true)
+                      {
+                          File file = LITTLEFS.open(fileName, "r");
+                          data = file.readString();
+                          file.close();
+                      }
+                  });
 
         return data;
     }
 
     void WriteFile(const String &fileName, const String &data)
     {
-        MutexUtils::MutexTask(fsMutex, [&fileName, &data]() mutable
-                              {
-                                  File file = LITTLEFS.open(fileName, FILE_WRITE);
-                                  file.print(data.c_str());
-                                  file.close();
-                              });
+        MutexTask(fsMutex,
+                  {
+                      File file = LITTLEFS.open(fileName, FILE_WRITE);
+                      file.print(data.c_str());
+                      file.close();
+                  });
     }
 
     const bool FileExists(const String &fileName)
     {
         bool exist;
 
-        MutexUtils::MutexTask(fsMutex, [&fileName, &exist]() mutable
-                              { exist = LITTLEFS.exists(fileName); });
+        MutexTask(fsMutex,
+                  {
+                      exist = LITTLEFS.exists(fileName);
+                  });
 
         return exist;
     }
@@ -60,8 +62,10 @@ namespace FileSystem
     {
         File file;
 
-        MutexUtils::MutexTask(fsMutex, [&path, &mode, &file]() mutable
-                              { file = LITTLEFS.open(path, mode); });
+        MutexTask(fsMutex,
+                  {
+                      file = LITTLEFS.open(path, mode);
+                  });
 
         return file;
     }
@@ -70,8 +74,10 @@ namespace FileSystem
     {
         bool deleted;
 
-        MutexUtils::MutexTask(fsMutex, [&path, &deleted]() mutable
-                              { deleted = LITTLEFS.remove(path); });
+        MutexTask(fsMutex,
+                  {
+                      deleted = LITTLEFS.remove(path);
+                  });
 
         return deleted;
     }

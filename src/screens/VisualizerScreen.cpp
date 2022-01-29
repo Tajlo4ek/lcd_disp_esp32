@@ -165,6 +165,11 @@ namespace Screens
             }
         }
 
+        if (spNum != 2 * this->spectrumLen)
+        {
+            parseOk = false;
+        }
+
         if (parseOk)
         {
             visualizer->SetSpectrum(leftSpectrumParseData, rightSpectrumParseData);
@@ -188,7 +193,7 @@ namespace Screens
     {
         delete this->visualizer;
 
-        delete [] leftSpectrumParseData;
-        delete [] rightSpectrumParseData;
+        delete[] leftSpectrumParseData;
+        delete[] rightSpectrumParseData;
     }
 }

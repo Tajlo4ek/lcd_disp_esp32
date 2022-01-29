@@ -2,7 +2,6 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include <functional>
 #include <queue>
 
 #include "utils/wifi/WifiUtils.h"
@@ -127,8 +126,10 @@ void UartTask(void *parameter)
 
             if (ch == COMMAND_STOP_CHAR)
             {
-                MutexUtils::MutexTask(commandQueueMutex, [serialData]()
-                                      { commands.push(serialData); });
+                MutexTask(commandQueueMutex,
+                          {
+                              commands.push(serialData);
+                          });
 
                 serialData.clear();
             }
@@ -143,17 +144,15 @@ void ParseCommandTask(void *parameter)
     for (;;)
     {
         String data;
-        int size = 0;
 
-        MutexUtils::MutexTask(commandQueueMutex, [&data, &size]() mutable
-                              {
-                                  if (commands.empty() == false)
-                                  {
-                                      size = commands.size();
-                                      data = commands.front();
-                                      commands.pop();
-                                  }
-                              });
+        MutexTask(commandQueueMutex,
+                  {
+                      if (commands.empty() == false)
+                      {
+                          data = commands.front();
+                          commands.pop();
+                      }
+                  });
 
         if (data.isEmpty() == false)
         {
@@ -178,19 +177,21 @@ String CheckCommand(const String &data)
     if (data.startsWith(COMMAND_SET_MODE_SPECTRUM) ||
         data.startsWith(COMMAND_SEND_SPECTRUM_DATA))
     {
-        MutexUtils::MutexTask(screenMutex, [&res, &data]() mutable
-                              { res = visualizerScreen->ParseMessage(data); });
+        MutexTask(screenMutex,
+                  {
+                      res = visualizerScreen->ParseMessage(data);
+                  });
     }
     else if (data.startsWith(COMMAND_RELOAD_SCREEN))
     {
-        MutexUtils::MutexTask(screenMutex, [&res]() mutable
-                              {
-                                  for (const auto &screen : screens)
-                                  {
-                                      screen->ReloadConfig();
-                                  }
-                                  res = COMMAND_OK;
-                              });
+        MutexTask(screenMutex,
+                  {
+                      for (const auto &screen : screens)
+                      {
+                          screen->ReloadConfig();
+                      }
+                      res = COMMAND_OK;
+                  });
     }
 
     return res;
@@ -198,26 +199,26 @@ String CheckCommand(const String &data)
 
 void SetActiveScreen(int screenNum)
 {
-    MutexUtils::MutexTask(screenMutex, [&screenNum]()
-                          {
-                              if (screenNum >= (int)screens.size())
-                              {
-                                  screenNum -= screens.size();
-                              }
-                              else if (screenNum < 0)
-                              {
-                                  screenNum += screens.size();
-                              }
-                              nowScreenNum = screenNum;
+    MutexTask(screenMutex,
+              {
+                  if (screenNum >= (int)screens.size())
+                  {
+                      screenNum -= screens.size();
+                  }
+                  else if (screenNum < 0)
+                  {
+                      screenNum += screens.size();
+                  }
+                  nowScreenNum = screenNum;
 
-                              for (auto &screen : screens)
-                              {
-                                  screen->SetVisible(false);
-                              }
+                  for (auto &screen : screens)
+                  {
+                      screen->SetVisible(false);
+                  }
 
-                              activeScreen = screens[nowScreenNum];
-                              activeScreen->SetVisible(true);
-                          });
+                  activeScreen = screens[nowScreenNum];
+                  activeScreen->SetVisible(true);
+              });
 }
 
 void GetWeather(void *parameter)
@@ -231,8 +232,10 @@ void GetWeather(void *parameter)
         bool isOk;
         auto weather = Weather::GetWether(isOk, weatherCity, weatherApiKey);
 
-        MutexUtils::MutexTask(screenMutex, [weather, isOk]()
-                              { mainScreen->SetWeather(weather); });
+        MutexTask(screenMutex,
+                  {
+                      mainScreen->SetWeather(weather);
+                  });
 
         if (isOk == true)
         {
@@ -256,13 +259,17 @@ void GetTime(void *parameter)
 
         if (isOk == true)
         {
-            MutexUtils::MutexTask(timeMutex, [ntp]()
-                                  { myClock.ParseFromNtp(ntp); });
+            MutexTask(timeMutex,
+                      {
+                          myClock.ParseFromNtp(ntp);
+                      });
 
             if (failCount != 0)
             {
-                MutexUtils::MutexTask(screenMutex, []()
-                                      { mainScreen->SetTimeOk(true); });
+                MutexTask(screenMutex,
+                          {
+                              mainScreen->SetTimeOk(true);
+                          });
             }
             failCount = 0;
 
@@ -273,8 +280,10 @@ void GetTime(void *parameter)
             failCount++;
             if (failCount > TIME_UPDATE_FAIL_COUNT)
             {
-                MutexUtils::MutexTask(screenMutex, []()
-                                      { mainScreen->SetTimeOk(false); });
+                MutexTask(screenMutex,
+                          {
+                              mainScreen->SetTimeOk(false);
+                          });
             }
             vTaskDelay(TIME_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
         }
@@ -287,15 +296,17 @@ void TimeTick(void *parameter)
 
     for (;;)
     {
-        MutexUtils::MutexTask(timeMutex, [&prevMillis]() mutable
-                              {
-                                  auto nowMillis = millis();
-                                  myClock.AddMillis(nowMillis - prevMillis);
-                                  prevMillis = nowMillis;
+        MutexTask(timeMutex,
+                  {
+                      auto nowMillis = millis();
+                      myClock.AddMillis(nowMillis - prevMillis);
+                      prevMillis = nowMillis;
 
-                                  MutexUtils::MutexTask(screenMutex, []()
-                                                        { mainScreen->SetTime(myClock); });
-                              });
+                      MutexTask(screenMutex,
+                                {
+                                    mainScreen->SetTime(myClock);
+                                });
+                  });
 
         vTaskDelay(CLOCK_TICK_TIME_MILLISEC / portTICK_PERIOD_MS);
     }
