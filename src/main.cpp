@@ -3,12 +3,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <queue>
+#include <map>
 
 #include "utils/wifi/WifiUtils.h"
 #include "utils/http/HttpServer.h"
 #include "utils/weather/Weather.h"
 #include "utils/json/JsonParser.h"
 #include "utils/fileSystem/FileSystem.h"
+#include "utils/button/Button.h"
 
 #include "utils/FileNames.h"
 #include "utils/Commands.h"
@@ -24,15 +26,19 @@
 
 void InitWifi();
 
-void GetWeather(void *parameter);
-void GetTime(void *parameter);
-void TimeTick(void *parameter);
+void GetWeatherTask(void *parameter);
+void GetTimeTask(void *parameter);
+void TimeTickTask(void *parameter);
 void UartTask(void *parameter);
 void ParseCommandTask(void *parameter);
+void CheckButtonsTask(void *parameter);
 void ServerTask(void *parameter);
 
+void CreateButtons();
 String CheckCommand(const String &data);
 void SetActiveScreen(int screenNum);
+
+void IRAM_ATTR BtnISR();
 
 TFT_eSPI lcd = TFT_eSPI();
 #define LCD_WIDTH 160
@@ -55,11 +61,18 @@ Clock::Clock myClock(3);
 
 SemaphoreHandle_t screenMutex;
 SemaphoreHandle_t timeMutex;
-
 SemaphoreHandle_t uartMutex;
 SemaphoreHandle_t commandQueueMutex;
 
 std::queue<String> commands;
+
+#define BTN_PIN_OK 27
+#define BTN_PIN_LEFT 12
+#define BTN_PIN_DOWN 14
+#define BTN_PIN_UP 26
+#define BTN_PIN_RIGHT 13
+QueueHandle_t buttonClickQueue;
+std::map<Utils::ButtonName, Utils::Button> buttons;
 
 Screens::MainScreen *mainScreen;
 Screens::VisualizerScreen *visualizerScreen;
@@ -73,6 +86,8 @@ void setup()
     timeMutex = xSemaphoreCreateMutex();
     screenMutex = xSemaphoreCreateMutex();
     commandQueueMutex = xSemaphoreCreateMutex();
+
+    buttonClickQueue = xQueueCreate(100, sizeof(Utils::ButtonName));
 
     Serial.begin(115200);
     FileSystem::Init();
@@ -91,11 +106,14 @@ void setup()
     InitWifi();
     HttpServer::Init(CheckCommand);
 
-    xTaskCreate(GetWeather, String(F("update weather")).c_str(), 5 * 1024, NULL, 3, NULL);
-    xTaskCreate(GetTime, String(F("update time")).c_str(), 5 * 1024, NULL, 3, NULL);
-    xTaskCreate(TimeTick, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
+    CreateButtons();
+
+    xTaskCreate(GetWeatherTask, String(F("update weather")).c_str(), 5 * 1024, NULL, 3, NULL);
+    xTaskCreate(GetTimeTask, String(F("update time")).c_str(), 5 * 1024, NULL, 3, NULL);
+    xTaskCreate(TimeTickTask, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
     xTaskCreate(UartTask, String(F("uart rec")).c_str(), 5 * 1024, NULL, 10, NULL);
     xTaskCreate(ParseCommandTask, String(F("command")).c_str(), 10 * 1024, NULL, 10, NULL);
+    xTaskCreate(CheckButtonsTask, String(F("buttons")).c_str(), 10 * 1024, NULL, 10, NULL);
     xTaskCreate(ServerTask, String(F("server")).c_str(), 20 * 1024, NULL, 3, NULL);
 }
 
@@ -104,64 +122,71 @@ void loop()
     vTaskDelete(NULL);
 }
 
-void ServerTask(void *parameter)
+void CreateButtons()
 {
-    for (;;)
-    {
-        HttpServer::HandleServer();
-        vTaskDelay(25 / portTICK_PERIOD_MS);
+#define CREATE_BUTTON(pin, name, func)                          \
+    {                                                           \
+        buttons[name] = Utils::Button();                        \
+        buttons[name].SetClickCallback([]() { func });          \
+        pinMode(pin, INPUT);                                    \
+        attachInterrupt(                                        \
+            pin, []() {                                         \
+                Utils::ButtonName value = name;                 \
+                xQueueSendFromISR(buttonClickQueue, &value, 0); \
+            },                                                  \
+            RISING);                                            \
     }
-}
 
-void UartTask(void *parameter)
-{
-    String serialData;
+#define CHECK_BTN_CLICK_SCREEN(screenFunc, notScreenFunc) \
+    {                                                     \
+        bool isInterapt;                                  \
+        MutexTask(screenMutex,                            \
+                  {                                       \
+                      isInterapt = screenFunc;            \
+                  });                                     \
+        if (isInterapt == false)                          \
+        {                                                 \
+            notScreenFunc;                                \
+        }                                                 \
+    }
 
-    for (;;)
-    {
-        while (Serial.available())
+    CREATE_BUTTON(
+        BTN_PIN_RIGHT,
+        Utils::ButtonName::NameRight,
+        CHECK_BTN_CLICK_SCREEN(
+            activeScreen->OnBtnRightClick(),
+            SetActiveScreen(nowScreenNum + 1)));
+
+    CREATE_BUTTON(
+        BTN_PIN_LEFT,
+        Utils::ButtonName::NameLeft,
+        CHECK_BTN_CLICK_SCREEN(
+            activeScreen->OnBtnLeftClick(),
+            SetActiveScreen(nowScreenNum - 1)));
+
+    CREATE_BUTTON(
+        BTN_PIN_OK,
+        Utils::ButtonName::NameOk,
         {
-            char ch = (char)Serial.read();
-            serialData += ch;
+            //Serial.println("NameOk");
+        });
 
-            if (ch == COMMAND_STOP_CHAR)
-            {
-                MutexTask(commandQueueMutex,
-                          {
-                              commands.push(serialData);
-                          });
-
-                serialData.clear();
-            }
-        }
-
-        vTaskDelay(5 / portTICK_PERIOD_MS);
-    }
-}
-
-void ParseCommandTask(void *parameter)
-{
-    for (;;)
-    {
-        String data;
-
-        MutexTask(commandQueueMutex,
-                  {
-                      if (commands.empty() == false)
-                      {
-                          data = commands.front();
-                          commands.pop();
-                      }
-                  });
-
-        if (data.isEmpty() == false)
+    CREATE_BUTTON(
+        BTN_PIN_DOWN,
+        Utils::ButtonName::NameDown,
         {
-            Serial.print(CheckCommand(data));
-            Serial.print(COMMAND_STOP_CHAR);
-        }
+            //Serial.println("NameDown");
+        });
 
-        vTaskDelay(5 / portTICK_PERIOD_MS);
-    }
+    CREATE_BUTTON(
+        BTN_PIN_UP,
+        Utils::ButtonName::NameUp,
+        {
+            //Serial.println("NameUp");
+        });
+
+#undef CHECK_BTN_CLICK_SCREEN
+#undef CREATE_BUTTON
 }
 
 String CheckCommand(const String &data)
@@ -221,7 +246,110 @@ void SetActiveScreen(int screenNum)
               });
 }
 
-void GetWeather(void *parameter)
+void InitWifi()
+{
+    isSTA = true;
+    int connectTryes = 20;
+    auto wifiConfig = WifiUtils::LoadWiFiConfig();
+
+    WifiUtils::TryConnectCallback callback = [wifiConfig, connectTryes](int tryCount)
+    {
+        String msg = F("try start wifi ");
+        msg += String(connectTryes - tryCount);
+        msg += '/';
+        msg += String(connectTryes);
+
+        mainScreen->SetMessage(msg);
+    };
+
+    if (WifiUtils::ConnectWifi(wifiConfig.ssid, wifiConfig.password, connectTryes, callback) == false)
+    {
+        mainScreen->SetMessage(F("can't connect. start ap"));
+        delay(1000);
+
+        String ssid = BASE_SSID;
+        String pass = BASE_PASS;
+
+        mainScreen->SetMessage(ssid + ' ' + pass);
+        WifiUtils::StartAP(ssid, pass);
+        delay(1000);
+        isSTA = false;
+    }
+
+    mainScreen->SetMessage(String(F("IP: ")) + WifiUtils::GetIpString());
+}
+
+void ServerTask(void *parameter)
+{
+    for (;;)
+    {
+        HttpServer::HandleServer();
+        vTaskDelay(25 / portTICK_PERIOD_MS);
+    }
+}
+
+void UartTask(void *parameter)
+{
+    String serialData;
+
+    for (;;)
+    {
+        while (Serial.available())
+        {
+            char ch = (char)Serial.read();
+            serialData += ch;
+
+            if (ch == COMMAND_STOP_CHAR)
+            {
+                MutexTask(commandQueueMutex,
+                          {
+                              commands.push(serialData);
+                          });
+
+                serialData.clear();
+            }
+        }
+
+        vTaskDelay(5 / portTICK_PERIOD_MS);
+    }
+}
+
+void CheckButtonsTask(void *parameter)
+{
+    for (;;)
+    {
+        Utils::ButtonName btnName;
+        xQueueReceive(buttonClickQueue, &btnName, portMAX_DELAY);
+        buttons[btnName].CheckClick();
+    }
+}
+
+void ParseCommandTask(void *parameter)
+{
+    for (;;)
+    {
+        String data;
+
+        MutexTask(commandQueueMutex,
+                  {
+                      if (commands.empty() == false)
+                      {
+                          data = commands.front();
+                          commands.pop();
+                      }
+                  });
+
+        if (data.isEmpty() == false)
+        {
+            Serial.print(CheckCommand(data));
+            Serial.print(COMMAND_STOP_CHAR);
+        }
+
+        vTaskDelay(5 / portTICK_PERIOD_MS);
+    }
+}
+
+void GetWeatherTask(void *parameter)
 {
     for (;;)
     {
@@ -248,7 +376,7 @@ void GetWeather(void *parameter)
     }
 }
 
-void GetTime(void *parameter)
+void GetTimeTask(void *parameter)
 {
     int failCount = 0;
 
@@ -290,7 +418,7 @@ void GetTime(void *parameter)
     }
 }
 
-void TimeTick(void *parameter)
+void TimeTickTask(void *parameter)
 {
     unsigned long prevMillis = millis();
 
@@ -310,37 +438,4 @@ void TimeTick(void *parameter)
 
         vTaskDelay(CLOCK_TICK_TIME_MILLISEC / portTICK_PERIOD_MS);
     }
-}
-
-void InitWifi()
-{
-    isSTA = true;
-    int connectTryes = 20;
-    auto wifiConfig = WifiUtils::LoadWiFiConfig();
-
-    WifiUtils::TryConnectCallback callback = [wifiConfig, connectTryes](int tryCount)
-    {
-        String msg = F("try start wifi ");
-        msg += String(connectTryes - tryCount);
-        msg += '/';
-        msg += String(connectTryes);
-
-        mainScreen->SetMessage(msg);
-    };
-
-    if (WifiUtils::ConnectWifi(wifiConfig.ssid, wifiConfig.password, connectTryes, callback) == false)
-    {
-        mainScreen->SetMessage(F("can't connect. start ap"));
-        delay(1000);
-
-        String ssid = BASE_SSID;
-        String pass = BASE_PASS;
-
-        mainScreen->SetMessage(ssid + ' ' + pass);
-        WifiUtils::StartAP(ssid, pass);
-        delay(1000);
-        isSTA = false;
-    }
-
-    mainScreen->SetMessage(String(F("IP: ")) + WifiUtils::GetIpString());
 }

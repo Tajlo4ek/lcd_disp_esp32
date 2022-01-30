@@ -32,7 +32,7 @@ namespace Screens
     public:
         virtual String ParseMessage(const String &message);
         virtual void ReloadConfig() = 0;
-       
+
         void SetVisible(bool isVisible);
 
         Screen(TFT_eSPI *lcd);
@@ -40,6 +40,8 @@ namespace Screens
         virtual bool OnBtnLeftClick();
         virtual bool OnBtnRightClick();
         virtual bool OnBtnCenterClick();
+        virtual bool OnBtnUpClick();
+        virtual bool OnBtnDownClick();
     };
 }
 
