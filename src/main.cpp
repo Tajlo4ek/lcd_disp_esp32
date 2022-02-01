@@ -101,7 +101,7 @@ void setup()
 
     screens.push_back(mainScreen);
     screens.push_back(visualizerScreen);
-    SetActiveScreen(1);
+    SetActiveScreen(0);
 
     InitWifi();
     HttpServer::Init(CheckCommand);

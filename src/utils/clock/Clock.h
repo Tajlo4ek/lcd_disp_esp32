@@ -40,9 +40,9 @@ namespace Clock
         void ParseFromNtp(unsigned long time);
 
     private:
-        Time nowTime;
         Date nowDate;
         int utc;
+        unsigned long nowMillis;
 
         static const byte monthDays[];
     };

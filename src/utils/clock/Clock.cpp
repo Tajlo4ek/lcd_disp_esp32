@@ -13,10 +13,7 @@ namespace Clock
 
     void Clock::SetTime(int hour, int minute, int second)
     {
-        this->nowTime.milliSecond = 0;
-        this->nowTime.second = second;
-        this->nowTime.minute = (minute * 60 + second) / 60.0F;
-        this->nowTime.hour = (hour * 60 * 60 + minute * 60 + second) / 60.0F / 60.0F;
+        nowMillis = 60 * 60 * 1000 * hour + 60 * 1000 * minute + 1000 * second;
     }
 
     void Clock::SetDate(int day, int month, int year)
@@ -28,29 +25,11 @@ namespace Clock
 
     void Clock::AddMillis(unsigned long millisec)
     {
-        this->nowTime.milliSecond += millisec;
-        this->nowTime.second += millisec / 1000.0F;
-        this->nowTime.minute += millisec / 1000.0F / 60.0F;
-        this->nowTime.hour += millisec / 1000.0F / 60.0F / 60.0F;
+        this->nowMillis += millisec;
 
-        while (this->nowTime.milliSecond >= 1000)
+        if (this->nowMillis >= 24 * 60 * 60 * 1000)
         {
-            this->nowTime.milliSecond -= 1000;
-        }
-
-        while (this->nowTime.second >= 60)
-        {
-            this->nowTime.second -= 60;
-        }
-
-        while (this->nowTime.minute >= 60)
-        {
-            this->nowTime.minute -= 60;
-        }
-
-        if (this->nowTime.hour >= 24)
-        {
-            this->nowTime.hour -= 24;
+            this->nowMillis -= 24 * 60 * 60 * 1000;
 
             this->nowDate.day++;
             byte monthLength = 0;
@@ -82,7 +61,27 @@ namespace Clock
 
     const Time Clock::GetTime() const
     {
-        return nowTime;
+        float nowHour = this->nowMillis / (1000.0F * 60.0F * 60.0F);
+        float nowMinute = this->nowMillis / (1000.0F * 60.0F);
+        float nowSecond = this->nowMillis / (1000.0F);
+        float nowMillisec = this->nowMillis % 1000;
+
+        while (nowHour >= 24)
+        {
+            nowHour -= 24;
+        }
+
+        while (nowMinute >= 60)
+        {
+            nowMinute -= 60;
+        }
+
+        while (nowSecond >= 60)
+        {
+            nowSecond -= 60;
+        }
+
+        return Time{nowHour, nowMinute, nowSecond, nowMillisec};
     }
 
     const String Clock::GetDateString() const
