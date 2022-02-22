@@ -8,6 +8,7 @@
 #define WIFI_CONFIG_PATH String(CONFIG_DIR) + F("/Wifi.json")
 #define MAIN_SCREEN_CONFIG_PATH String(CONFIG_DIR) + F("/MainScreen.json")
 #define SPECTRUM_CONFIG_PATH String(CONFIG_DIR) + F("/Spectrum.json")
+#define TIME_CONFIG_PATH String(CONFIG_DIR) + F("/Time.json")
 
 #define INDEX_PAGE_PATH String(PAGES_DIR) + F("/index.html")
 #define CONNECT_PAGE_PATH String(PAGES_DIR) + F("/connect.html")

@@ -28,7 +28,7 @@ void InitWifi();
 
 void GetWeatherTask(void *parameter);
 void GetTimeTask(void *parameter);
-void TimeTickTask(void *parameter);
+void ClockTickTIme(void *parameter);
 void UartTask(void *parameter);
 void ParseCommandTask(void *parameter);
 void CheckButtonsTask(void *parameter);
@@ -38,26 +38,23 @@ void CreateButtons();
 String CheckCommand(const String &data);
 void SetActiveScreen(int screenNum);
 
-void IRAM_ATTR BtnISR();
-
 TFT_eSPI lcd = TFT_eSPI();
 #define LCD_WIDTH 160
 #define LCD_HEIGHT 128
 #define LCD_ROTATE 3
-
-bool isSTA;
 
 #define WEATHER_CONFIG_CITY F("city")
 #define WEATHER_CONFIG_APIKEY F("apiKey")
 #define WEATHER_UPDATE_TIME_OK 10 * 60 * 1000
 #define WEATHER_UPDATE_TIME_FAIL 1 * 60 * 1000
 
-#define NTP_SERVER_NAME F("2.ru.pool.ntp.org")
+#define TIME_CONFIG_NTP F("ntp")
+#define TIME_CONFIG_UTC F("utc")
 #define TIME_UPDATE_TIME_OK 30 * 60 * 1000
 #define TIME_UPDATE_TIME_FAIL 1 * 60 * 1000
 #define TIME_UPDATE_FAIL_COUNT 10
 #define CLOCK_TICK_TIME_MILLISEC 100
-Clock::Clock myClock(3);
+Clock::Clock myClock;
 
 SemaphoreHandle_t screenMutex;
 SemaphoreHandle_t timeMutex;
@@ -110,7 +107,7 @@ void setup()
 
     xTaskCreate(GetWeatherTask, String(F("update weather")).c_str(), 5 * 1024, NULL, 3, NULL);
     xTaskCreate(GetTimeTask, String(F("update time")).c_str(), 5 * 1024, NULL, 3, NULL);
-    xTaskCreate(TimeTickTask, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
+    xTaskCreate(ClockTickTIme, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
     xTaskCreate(UartTask, String(F("uart rec")).c_str(), 5 * 1024, NULL, 10, NULL);
     xTaskCreate(ParseCommandTask, String(F("command")).c_str(), 10 * 1024, NULL, 10, NULL);
     xTaskCreate(CheckButtonsTask, String(F("buttons")).c_str(), 10 * 1024, NULL, 10, NULL);
@@ -248,7 +245,6 @@ void SetActiveScreen(int screenNum)
 
 void InitWifi()
 {
-    isSTA = true;
     int connectTryes = 20;
     auto wifiConfig = WifiUtils::LoadWiFiConfig();
 
@@ -273,7 +269,6 @@ void InitWifi()
         mainScreen->SetMessage(ssid + ' ' + pass);
         WifiUtils::StartAP(ssid, pass);
         delay(1000);
-        isSTA = false;
     }
 
     mainScreen->SetMessage(String(F("IP: ")) + WifiUtils::GetIpString());
@@ -382,13 +377,18 @@ void GetTimeTask(void *parameter)
 
     for (;;)
     {
+        String json = FileSystem::ReadFile(TIME_CONFIG_PATH);
+        auto ntpServer = JsonParser::GetJsonData(json, TIME_CONFIG_NTP);
+        auto utc = JsonParser::GetJsonData(json, TIME_CONFIG_UTC).toInt();
+
         bool isOk;
-        auto ntp = NtpTime::AskNTP(NTP_SERVER_NAME, isOk);
+        auto ntp = NtpTime::AskNTP(ntpServer, isOk);
 
         if (isOk == true)
         {
             MutexTask(timeMutex,
                       {
+                          myClock.SetUTC(utc);
                           myClock.ParseFromNtp(ntp);
                       });
 
@@ -418,7 +418,7 @@ void GetTimeTask(void *parameter)
     }
 }
 
-void TimeTickTask(void *parameter)
+void ClockTickTIme(void *parameter)
 {
     unsigned long prevMillis = millis();
 

@@ -28,7 +28,8 @@ namespace Clock
     class Clock
     {
     public:
-        Clock(int utc);
+        Clock();
+        void SetUTC(int utc);
         void SetTime(int hour, int minute, int second);
         void SetDate(int day, int month, int year);
         void AddMillis(unsigned long millisec);

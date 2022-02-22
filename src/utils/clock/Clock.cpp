@@ -4,10 +4,15 @@ namespace Clock
 {
     const byte Clock::monthDays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
-    Clock::Clock(int utc)
+    Clock::Clock()
     {
         this->SetTime(0, 0, 0);
         this->SetDate(1, 1, 1970);
+        this->utc = utc;
+    }
+
+    void Clock::SetUTC(int utc)
+    {
         this->utc = utc;
     }
 
