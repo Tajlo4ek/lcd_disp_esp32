@@ -14,12 +14,13 @@ namespace Utils
     {
         unsigned long time = millis();
         bool isClick = (time - lastClick) > CLICK_DELAY;
-        lastClick = time;
 
         if (isClick && callback != nullptr)
         {
             callback();
         }
+
+        lastClick = millis();
     }
 
     void Button::SetClickCallback(std::function<void()> callback)
