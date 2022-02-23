@@ -11,7 +11,7 @@ namespace Controls
         void Draw(bool force) override;
 
     public:
-        MultilineLable(TFT_eSPI *lcd, ControlRect rect, TextSize size);
+        MultilineLable(TFT_eSPI *lcd, ControlRect rect);
     };
 
 }

@@ -4,14 +4,12 @@
 
 namespace Controls
 {
-    const std::vector<Label::TextSize> Label::textSizeSorted = {Label::TextSize::Big, Label::TextSize::Normal, Label::TextSize::Small};
 
-    Label::Label(TFT_eSPI *lcd, ControlRect rect, TextSize size)
+    Label::Label(TFT_eSPI *lcd, ControlRect rect)
         : BaseControl(lcd, rect)
     {
         this->alignment = Controls::Label::TextAlignment::Left;
         this->text = "";
-        this->size = size;
     }
 
     void Label::DrawText(const String &text, TextAlignment alignment)
@@ -26,28 +24,22 @@ namespace Controls
         ClearRect();
         SetViewPort();
 
-        TextSize nowSize = this->size;
-        if (nowSize == TextSize::Auto)
+        int fontSize = 1;
+        for (const auto font : fontSizeSorted)
         {
-            for (const auto textSize : textSizeSorted)
+            lcd->setTextFont(font);
+            int nowTextHeight = lcd->fontHeight(font);
+            int nowTextWidth = lcd->textWidth(this->text);
+
+            if (nowTextHeight != 0 && nowTextHeight <= controlRect.height && nowTextWidth <= controlRect.width)
             {
-                if (lcd->fontHeight(textSize) <= controlRect.height)
-                {
-                    nowSize = textSize;
-                    break;
-                }
+                fontSize = font;
+                break;
             }
         }
 
         lcd->setTextColor(mainColor, backColor);
-        lcd->setTextFont(nowSize);
-
-        if (lcd->fontHeight() > controlRect.height)
-        {
-            lcd->setTextSize(1);
-            lcd->drawString(F("font to big"), 0, 0);
-            return;
-        }
+        lcd->setTextFont(fontSize);
 
         int textWidth = lcd->textWidth(text);
         int drawX = 0;
@@ -68,6 +60,7 @@ namespace Controls
             drawX = controlRect.width - textWidth;
             break;
         }
+
         lcd->drawString(text, drawX, drawY);
     }
 

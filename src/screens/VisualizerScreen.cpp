@@ -16,10 +16,10 @@ namespace Screens
 #define CONFIG_HIGH_COLOR F("highColor")
 #define CONFIG_MAX_COLOR F("maxColor")
 
-    VisualizerScreen::VisualizerScreen(TFT_eSPI *lcd)
-        : Screen(lcd)
+    VisualizerScreen::VisualizerScreen(TFT_eSPI *lcd, int width, int height)
+        : Screen(lcd, width, height)
     {
-        Controls::ControlRect rect = {5, 0, 150, 128};
+        Controls::ControlRect rect = {5, 0, width - 10, height};
         this->visualizer = new Controls::VisualizerControl(lcd, rect);
 
         this->spectrumLen = this->visualizer->GetLineCount();

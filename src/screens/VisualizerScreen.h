@@ -27,7 +27,7 @@ namespace Screens
         String ParseMessage(const String &message) override;
         void ReloadConfig() override;
 
-        VisualizerScreen(TFT_eSPI *lcd);
+        VisualizerScreen(TFT_eSPI *lcd, int width, int height);
         ~VisualizerScreen();
     };
 }

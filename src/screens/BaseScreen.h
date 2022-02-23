@@ -19,6 +19,8 @@ namespace Screens
 
     protected:
         TFT_eSPI *lcd;
+        int width;
+        int height;
         uint16_t backColor;
 
         virtual void CreateDefaultConfig() = 0;
@@ -35,7 +37,7 @@ namespace Screens
 
         void SetVisible(bool isVisible);
 
-        Screen(TFT_eSPI *lcd);
+        Screen(TFT_eSPI *lcd, int width, int height);
 
         virtual bool OnBtnLeftClick();
         virtual bool OnBtnRightClick();

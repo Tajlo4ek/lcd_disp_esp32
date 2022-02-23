@@ -5,6 +5,8 @@
 
 namespace Controls
 {
+    const int fontSizeSorted[] = {4, 2, 1};
+
     class Label : public BaseControl
     {
 
@@ -16,29 +18,17 @@ namespace Controls
             Right
         };
 
-        enum TextSize
-        {
-            Auto,
-            Small = 1,
-            Normal = 2,
-            Big = 4,
-        };
-
-        Label(TFT_eSPI *lcd, ControlRect rect, TextSize size = TextSize::Auto);
+        Label(TFT_eSPI *lcd, ControlRect rect);
         ~Label();
 
         void DrawText(const String &text, TextAlignment alignment);
 
     protected:
         String text;
-        TextSize size;
         TextAlignment alignment;
-
-        static const std::vector<TextSize> textSizeSorted;
 
         virtual void Draw(bool force);
     };
-
 }
 
 #endif

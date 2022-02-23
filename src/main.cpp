@@ -39,9 +39,7 @@ String CheckCommand(const String &data);
 void SetActiveScreen(int screenNum);
 
 TFT_eSPI lcd = TFT_eSPI();
-#define LCD_WIDTH 160
-#define LCD_HEIGHT 128
-#define LCD_ROTATE 3
+#define LCD_ROTATE 1
 
 #define WEATHER_CONFIG_CITY F("city")
 #define WEATHER_CONFIG_APIKEY F("apiKey")
@@ -93,8 +91,11 @@ void setup()
     lcd.setRotation(LCD_ROTATE);
     lcd.fillScreen(TFT_BLACK);
 
-    mainScreen = new Screens::MainScreen(&lcd);
-    visualizerScreen = new Screens::VisualizerScreen(&lcd);
+    int width = lcd.width();
+    int height = lcd.height();
+
+    mainScreen = new Screens::MainScreen(&lcd, width, height);
+    visualizerScreen = new Screens::VisualizerScreen(&lcd, width, height);
 
     screens.push_back(mainScreen);
     screens.push_back(visualizerScreen);

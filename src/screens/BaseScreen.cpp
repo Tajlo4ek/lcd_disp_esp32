@@ -2,9 +2,13 @@
 
 namespace Screens
 {
-    Screen::Screen(TFT_eSPI *lcd)
+    Screen::Screen(TFT_eSPI *lcd, int width, int height)
     {
         this->lcd = lcd;
+        lcd->resetViewport();
+
+        this->width = width;
+        this->height = height;
     }
 
     void Screen::LeaveFocus() {}

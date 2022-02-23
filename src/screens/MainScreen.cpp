@@ -4,7 +4,6 @@
 #include "utils/Commands.h"
 #include "utils/weather/WeatherImages.h"
 
-//#include "Utils/Internet/NtpTime.h"
 #include "utils/fileSystem/FileSystem.h"
 #include "utils/json/JsonParser.h"
 #include "utils/DrawUtils/Color.h"
@@ -16,38 +15,42 @@ namespace Screens
 #define CONFIG_CLOCK_SECOND_COLOR F("clockSecondColor")
 #define CONFIG_ERROR_COLOR F("errorColor")
 
-    MainScreen::MainScreen(TFT_eSPI *lcd)
-        : Screen(lcd)
+    MainScreen::MainScreen(TFT_eSPI *lcd, int width, int height)
+        : Screen(lcd, width, height)
     {
-        Controls::ControlRect controlRect = {0, 2, 160, 8};
-        this->labelMessage = new Controls::Label(lcd, controlRect, Controls::Label::TextSize::Small);
+
+        Controls::ControlRect labelMessageRect = {0, 5, width, height / 10};
+        this->labelMessage = new Controls::Label(lcd, labelMessageRect);
         SetMessage("");
         controls.push_back(this->labelMessage);
 
-        controlRect = {0, 12, 160, 50};
-        this->digitalClock = new Controls::DigitalClock(lcd, controlRect);
+        Controls::ControlRect digitalClockRect = {0, labelMessageRect.leftUpY + labelMessageRect.height, width, height * 10 / 25};
+        this->digitalClock = new Controls::DigitalClock(lcd, digitalClockRect);
         controls.push_back(this->digitalClock);
 
-        controlRect = {0, 66, 160, 16};
-        this->labelDate = new Controls::Label(lcd, controlRect, Controls::Label::TextSize::Big);
+        Controls::ControlRect labelDateRect = {0, digitalClockRect.leftUpY + digitalClockRect.height, width, height / 10};
+        this->labelDate = new Controls::Label(lcd, labelDateRect);
         controls.push_back(this->labelDate);
 
-        controlRect = {0, 83, 160, 8};
-        this->labelTimeSync = new Controls::Label(lcd, controlRect, Controls::Label::TextSize::Small);
-        this->labelTimeSync->SetVisible(false);
-        this->labelTimeSync->DrawText(F("time not sync"), Controls::Label::TextAlignment::Center);
-        controls.push_back(this->labelTimeSync);
-
-        controlRect = {0, 92, 32, 32};
-        this->imageWeather = new Controls::Image(lcd, controlRect);
+        Controls::ControlRect imageWeatherRect = {5, height - 96, 96, 96};
+        this->imageWeather = new Controls::Image(lcd, imageWeatherRect);
         controls.push_back(this->imageWeather);
 
-        controlRect = {112, 100, 48, 16};
-        this->labelTemp = new Controls::Label(lcd, controlRect, Controls::Label::TextSize::Big);
+        Controls::ControlRect labelTempRect = {
+            width - imageWeatherRect.height * 3 / 2 - 5,
+            height - imageWeatherRect.height,
+            imageWeatherRect.height * 3 / 2,
+            imageWeatherRect.height};
+        this->labelTemp = new Controls::Label(lcd, labelTempRect);
         controls.push_back(this->labelTemp);
 
-        controlRect = {33, 100, 79, 24};
-        this->labelWeatherDescription = new Controls::MultilineLable(lcd, controlRect, Controls::Label::TextSize::Small);
+        Controls::ControlRect controlRect = {
+            imageWeatherRect.leftUpX + imageWeatherRect.width + 5,
+            height - imageWeatherRect.height,
+            labelTempRect.leftUpX - (imageWeatherRect.leftUpX + imageWeatherRect.width) - 10,
+            imageWeatherRect.height};
+
+        this->labelWeatherDescription = new Controls::MultilineLable(lcd, controlRect);
         controls.push_back(this->labelWeatherDescription);
 
         nowWeather = {99, F("weather not sync"), F("abort")};
@@ -98,9 +101,6 @@ namespace Screens
 
             this->labelDate->SetBackColor(this->backColor);
             this->labelDate->SetMainColor(clockMainColor);
-
-            this->labelTimeSync->SetBackColor(this->backColor);
-            this->labelTimeSync->SetMainColor(errorColor);
 
             this->imageWeather->SetBackColor(this->backColor);
             this->imageWeather->SetMainColor(clockMainColor);
@@ -158,7 +158,7 @@ namespace Screens
             WeatherImages::GetImage(nowWeather.imageName),
             WeatherImages::ImageByteCount);
 
-        char tempStr[] = {'+', '_', '_', 'C', '\0'};
+        char tempStr[] = {'+', '_', '_', 'c', '\0'};
 
         int tempAbs = nowWeather.temp >= 0 ? nowWeather.temp : -nowWeather.temp;
         if (tempAbs < 10)
@@ -208,7 +208,6 @@ namespace Screens
 
     void MainScreen::SetTimeOk(bool isOk)
     {
-        this->labelTimeSync->SetVisible(!isOk);
     }
 
     MainScreen::~MainScreen()
@@ -216,7 +215,6 @@ namespace Screens
         delete labelMessage;
         delete labelDate;
         delete digitalClock;
-        delete labelTimeSync;
         delete labelTemp;
         delete labelWeatherDescription;
     }

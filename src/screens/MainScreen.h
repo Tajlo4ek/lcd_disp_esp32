@@ -28,7 +28,6 @@ namespace Screens
         Controls::Label *labelMessage;
 
         Controls::Label *labelDate;
-        Controls::Label *labelTimeSync;
         Controls::DigitalClock *digitalClock;
 
         Controls::Image *imageWeather;
@@ -43,7 +42,7 @@ namespace Screens
     public:
         void ReloadConfig() override;
 
-        MainScreen(TFT_eSPI *lcd);
+        MainScreen(TFT_eSPI *lcd, int width, int height);
         ~MainScreen();
     };
 }
