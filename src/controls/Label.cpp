@@ -4,6 +4,8 @@
 
 namespace Controls
 {
+    const std::vector<Label::TextSize> Label::textSizeSorted = {Label::TextSize::Big, Label::TextSize::Normal, Label::TextSize::Small};
+
     Label::Label(TFT_eSPI *lcd, ControlRect rect, TextSize size)
         : BaseControl(lcd, rect)
     {
@@ -24,39 +26,49 @@ namespace Controls
         ClearRect();
         SetViewPort();
 
-        lcd->setTextSize((int)size / 8);
-        lcd->setTextColor(mainColor, backColor);
+        TextSize nowSize = this->size;
+        if (nowSize == TextSize::Auto)
+        {
+            for (const auto textSize : textSizeSorted)
+            {
+                if (lcd->fontHeight(textSize) <= controlRect.height)
+                {
+                    nowSize = textSize;
+                    break;
+                }
+            }
+        }
 
-        if ((int)this->size > controlRect.height)
+        lcd->setTextColor(mainColor, backColor);
+        lcd->setTextFont(nowSize);
+
+        if (lcd->fontHeight() > controlRect.height)
         {
             lcd->setTextSize(1);
-            lcd->drawString(F("size to big"), 0, 0);
+            lcd->drawString(F("font to big"), 0, 0);
             return;
         }
 
-        String buf = text;
         int textWidth = lcd->textWidth(text);
-        while (textWidth > controlRect.width)
-        {
-            buf.remove(buf.length() - 1);
-            textWidth = lcd->textWidth(buf);
-        }
+        int drawX = 0;
+        int drawY = (controlRect.height - lcd->fontHeight()) / 2;
 
         switch (this->alignment)
         {
         default:
         case TextAlignment::Left:
-            lcd->drawString(buf, 0, 0);
+            drawX = 0;
             break;
 
         case TextAlignment::Center:
-            lcd->drawString(text, (controlRect.width - textWidth) / 2, 0);
+            drawX = (controlRect.width - textWidth) / 2;
             break;
 
         case TextAlignment::Right:
-            lcd->drawString(buf, controlRect.width - textWidth, 0);
+            drawX = controlRect.width - textWidth;
             break;
         }
+        lcd->drawString(text, drawX, drawY);
     }
 
     Label::~Label()
