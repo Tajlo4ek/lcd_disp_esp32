@@ -24,13 +24,9 @@ namespace Screens
         SetMessage("");
         controls.push_back(this->labelMessage);
 
-        Controls::ControlRect digitalClockRect = {0, labelMessageRect.leftUpY + labelMessageRect.height, width, height * 10 / 25};
+        Controls::ControlRect digitalClockRect = {0, labelMessageRect.leftUpY + labelMessageRect.height + 1, width, height * 10 / 25};
         this->digitalClock = new Controls::DigitalClock(lcd, digitalClockRect);
         controls.push_back(this->digitalClock);
-
-        Controls::ControlRect labelDateRect = {0, digitalClockRect.leftUpY + digitalClockRect.height, width, height / 10};
-        this->labelDate = new Controls::Label(lcd, labelDateRect);
-        controls.push_back(this->labelDate);
 
         Controls::ControlRect imageWeatherRect = {5, height - 96, 96, 96};
         this->imageWeather = new Controls::Image(lcd, imageWeatherRect);
@@ -44,14 +40,22 @@ namespace Screens
         this->labelTemp = new Controls::Label(lcd, labelTempRect);
         controls.push_back(this->labelTemp);
 
-        Controls::ControlRect controlRect = {
+        Controls::ControlRect labelWeatherDescriptionRect = {
             imageWeatherRect.leftUpX + imageWeatherRect.width + 5,
             height - imageWeatherRect.height,
             labelTempRect.leftUpX - (imageWeatherRect.leftUpX + imageWeatherRect.width) - 10,
             imageWeatherRect.height};
 
-        this->labelWeatherDescription = new Controls::MultilineLable(lcd, controlRect);
+        this->labelWeatherDescription = new Controls::MultilineLable(lcd, labelWeatherDescriptionRect);
         controls.push_back(this->labelWeatherDescription);
+
+        Controls::ControlRect labelDateRect = {
+            0,
+            digitalClockRect.leftUpY + digitalClockRect.height + 1,
+            width,
+            imageWeatherRect.leftUpY - (digitalClockRect.leftUpY + digitalClockRect.height) - 2};
+        this->labelDate = new Controls::Label(lcd, labelDateRect);
+        controls.push_back(this->labelDate);
 
         nowWeather = {99, F("weather not sync"), F("abort")};
 
