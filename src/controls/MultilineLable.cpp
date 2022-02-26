@@ -16,57 +16,69 @@ namespace Controls
 
         lcd->setTextColor(this->mainColor, this->backColor);
 
-        for (const auto font : fontSizeSorted)
+        for (const auto font : textFontSorted)
         {
-            lcd->setTextFont(font);
-            int fontHeight = lcd->fontHeight();
+            bool isFind = false;
 
-            String text = this->text + ' ';
-            String buf;
-
-            std::vector<String> lines;
-
-            int nowIndex = 0;
-            while (true)
+            for (const auto size : textSizeSorted)
             {
-                int ind = text.indexOf(' ', nowIndex);
-                if (ind == -1)
+                lcd->setTextFont(font);
+                lcd->setTextSize(size);
+                
+                int fontHeight = lcd->fontHeight();
+
+                String text = this->text + ' ';
+                String buf;
+
+                std::vector<String> lines;
+
+                int nowIndex = 0;
+                while (true)
                 {
-                    if (buf.isEmpty() == false)
+                    int ind = text.indexOf(' ', nowIndex);
+                    if (ind == -1)
+                    {
+                        if (buf.isEmpty() == false)
+                        {
+                            lines.push_back(buf);
+                        }
+                        break;
+                    }
+
+                    String sub = text.substring(nowIndex, ind);
+
+                    if (lcd->textWidth(buf) + lcd->textWidth(sub) > controlRect.width)
                     {
                         lines.push_back(buf);
+                        buf = sub;
                     }
+                    else
+                    {
+                        buf += sub;
+                        buf += ' ';
+                    }
+
+                    nowIndex = ind + 1;
+                }
+
+                int totalHeight = lines.size() * fontHeight;
+                if (totalHeight <= controlRect.height)
+                {
+                    int offsetY = (controlRect.height - totalHeight) / 2;
+
+                    for (int i = 0; i < lines.size(); i++)
+                    {
+                        lcd->drawString(lines[i], 0, offsetY + i * fontHeight);
+                    }
+                    isFind = true;
                     break;
                 }
-
-                String sub = text.substring(nowIndex, ind);
-
-                if (lcd->textWidth(buf) + lcd->textWidth(sub) > controlRect.width)
-                {
-                    lines.push_back(buf);
-                    buf = sub;
-                }
-                else
-                {
-                    buf += sub;
-                    buf += ' ';
-                }
-
-                nowIndex = ind + 1;
             }
 
-            int totalHeight = lines.size() * fontHeight;
-            if (totalHeight <= controlRect.height)
+            if (isFind)
             {
-                int offsetY = (controlRect.height - totalHeight) / 2;
-
-                for (int i = 0; i < lines.size(); i++)
-                {
-                    lcd->drawString(lines[i], 0, offsetY + i * fontHeight);
-                }
                 break;
             }
         }
     }
-
 }

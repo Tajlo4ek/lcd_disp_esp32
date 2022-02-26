@@ -5,7 +5,8 @@
 
 namespace Controls
 {
-    const int fontSizeSorted[] = {4, 2, 1};
+    const int textFontSorted[] = {4, 2, 1};
+    const int textSizeSorted[] = {4, 2, 1};
 
     class Label : public BaseControl
     {

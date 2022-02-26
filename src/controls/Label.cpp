@@ -24,22 +24,39 @@ namespace Controls
         ClearRect();
         SetViewPort();
 
+        int textFont = 1;
         int fontSize = 1;
-        for (const auto font : fontSizeSorted)
-        {
-            lcd->setTextFont(font);
-            int nowTextHeight = lcd->fontHeight(font);
-            int nowTextWidth = lcd->textWidth(this->text);
 
-            if (nowTextHeight != 0 && nowTextHeight <= controlRect.height && nowTextWidth <= controlRect.width)
+        for (const auto font : textFontSorted)
+        {
+            bool isFind = false;
+
+            for (auto size : textSizeSorted)
             {
-                fontSize = font;
+                lcd->setTextFont(font);
+                lcd->setTextSize(size);
+
+                int nowTextHeight = lcd->fontHeight();
+                int nowTextWidth = lcd->textWidth(this->text);
+
+                if (nowTextHeight != 0 && nowTextHeight <= controlRect.height && nowTextWidth <= controlRect.width)
+                {
+                    textFont = font;
+                    fontSize = size;
+                    isFind = true;
+                    break;
+                }
+            }
+
+            if (isFind)
+            {
                 break;
             }
         }
 
         lcd->setTextColor(mainColor, backColor);
-        lcd->setTextFont(fontSize);
+        lcd->setTextFont(textFont);
+        lcd->setTextSize(fontSize);
 
         int textWidth = lcd->textWidth(text);
         int drawX = 0;
