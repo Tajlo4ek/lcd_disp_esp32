@@ -28,7 +28,8 @@ namespace Screens
         this->digitalClock = new Controls::DigitalClock(lcd, digitalClockRect);
         controls.push_back(this->digitalClock);
 
-        Controls::ControlRect imageWeatherRect = {5, height - 96, 96, 96};
+        int imageSize = height * 3 / 10;
+        Controls::ControlRect imageWeatherRect = {5, height - imageSize, imageSize, imageSize};
         this->imageWeather = new Controls::Image(lcd, imageWeatherRect);
         controls.push_back(this->imageWeather);
 
@@ -160,7 +161,9 @@ namespace Screens
     {
         this->imageWeather->DrawImage(
             WeatherImages::GetImage(nowWeather.imageName),
-            WeatherImages::ImageByteCount);
+            WeatherImages::imageWidth,
+            WeatherImages::imageHeight,
+            WeatherImages::imageByteCount);
 
         char tempStr[] = {'+', '_', '_', 'c', '\0'};
 

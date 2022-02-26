@@ -9,14 +9,16 @@ namespace Controls
     {
     private:
         const uint8_t *image;
-        uint16_t imageLen;
+        int imageW;
+        int imageH;
+        int bytesCount;
 
         void Draw(bool force) override;
 
     public:
         Image(TFT_eSPI *lcd, ControlRect rect);
 
-        void DrawImage(const uint8_t *image, const uint16_t imageLen);
+        void DrawImage(const uint8_t *image, const int imageW, const int imageH, const int bytesCount);
 
         ~Image();
     };
