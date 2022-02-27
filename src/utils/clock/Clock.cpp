@@ -89,31 +89,6 @@ namespace Clock
         return Time{nowHour, nowMinute, nowSecond, nowMillisec};
     }
 
-    const String Clock::GetDateString() const
-    {
-        char res[11];
-
-        res[0] = this->nowDate.day / 10 + '0';
-        res[1] = this->nowDate.day % 10 + '0';
-        res[2] = '.';
-        res[3] = this->nowDate.month / 10 + '0';
-        res[4] = this->nowDate.month % 10 + '0';
-        res[5] = '.';
-
-        int year = this->nowDate.year;
-        res[6] = year / 1000 + '0';
-        year %= 1000;
-
-        res[7] = year / 100 + '0';
-        year %= 100;
-
-        res[8] = year / 10 + '0';
-        res[9] = year % 10 + '0';
-        res[10] = '\0';
-
-        return String(res);
-    }
-
     void Clock::ParseFromNtp(unsigned long time)
     {
         time = time + this->utc * 3600;
@@ -125,7 +100,7 @@ namespace Clock
         int hour = time % 24;
 
         time /= 24; // now it is days
-        //int dayOfWeak = (time + 4) % 7; // day week, 0-sunday
+        // int dayOfWeak = (time + 4) % 7; // day week, 0-sunday
         int year = 70;
 
         int days = 0;

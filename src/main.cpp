@@ -122,17 +122,16 @@ void loop()
 
 void CreateButtons()
 {
-#define CREATE_BUTTON(pin, name, func)                          \
-    {                                                           \
-        buttons[name] = Utils::Button();                        \
-        buttons[name].SetClickCallback([]() { func });          \
-        pinMode(pin, INPUT);                                    \
-        attachInterrupt(                                        \
+#define CREATE_BUTTON(pin, name, func)                 \
+    {                                                  \
+        buttons[name] = Utils::Button();               \
+        buttons[name].SetClickCallback([]() { func }); \
+        pinMode(pin, INPUT);                           \
+        attachInterrupt(                               \
             pin, []() {                                         \
                 Utils::ButtonName value = name;                 \
-                xQueueSendFromISR(buttonClickQueue, &value, 0); \
-            },                                                  \
-            RISING);                                            \
+                xQueueSendFromISR(buttonClickQueue, &value, 0); },                             \
+            RISING);                                   \
     }
 
 #define CHECK_BTN_CLICK_SCREEN(screenFunc, notScreenFunc) \
@@ -166,21 +165,21 @@ void CreateButtons()
         BTN_PIN_OK,
         Utils::ButtonName::NameOk,
         {
-            //Serial.println("NameOk");
+            // Serial.println("NameOk");
         });
 
     CREATE_BUTTON(
         BTN_PIN_DOWN,
         Utils::ButtonName::NameDown,
         {
-            //Serial.println("NameDown");
+            // Serial.println("NameDown");
         });
 
     CREATE_BUTTON(
         BTN_PIN_UP,
         Utils::ButtonName::NameUp,
         {
-            //Serial.println("NameUp");
+            // Serial.println("NameUp");
         });
 
 #undef CHECK_BTN_CLICK_SCREEN
@@ -375,6 +374,7 @@ void GetWeatherTask(void *parameter)
 void GetTimeTask(void *parameter)
 {
     int failCount = 0;
+    bool firstLoad = true;
 
     for (;;)
     {
@@ -407,7 +407,7 @@ void GetTimeTask(void *parameter)
         else
         {
             failCount++;
-            if (failCount > TIME_UPDATE_FAIL_COUNT)
+            if (failCount > TIME_UPDATE_FAIL_COUNT || firstLoad)
             {
                 MutexTask(screenMutex,
                           {
@@ -416,6 +416,8 @@ void GetTimeTask(void *parameter)
             }
             vTaskDelay(TIME_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
         }
+
+        firstLoad = false;
     }
 }
 
@@ -433,7 +435,7 @@ void ClockTickTIme(void *parameter)
 
                       MutexTask(screenMutex,
                                 {
-                                    mainScreen->SetTime(myClock);
+                                    mainScreen->SetTime(myClock.GetTime(), myClock.GetDate());
                                 });
                   });
 

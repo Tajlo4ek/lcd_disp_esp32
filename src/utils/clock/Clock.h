@@ -36,7 +36,6 @@ namespace Clock
 
         const Time GetTime() const;
         const Date GetDate() const;
-        const String GetDateString() const;
 
         void ParseFromNtp(unsigned long time);
 

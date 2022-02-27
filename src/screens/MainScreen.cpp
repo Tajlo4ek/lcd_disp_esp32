@@ -13,7 +13,6 @@ namespace Screens
 #define CONFIG_BACK_COLOR F("backColor")
 #define CONFIG_CLOCK_MAIN_COLOR F("clockMainColor")
 #define CONFIG_CLOCK_SECOND_COLOR F("clockSecondColor")
-#define CONFIG_ERROR_COLOR F("errorColor")
 
     MainScreen::MainScreen(TFT_eSPI *lcd, int width, int height)
         : Screen(lcd, width, height)
@@ -61,6 +60,7 @@ namespace Screens
         nowWeather = {99, F("weather not sync"), F("abort")};
 
         this->nowDate = {0, 0, 0};
+        this->isTimeSync = false;
 
         ReloadConfig();
     }
@@ -74,23 +74,19 @@ namespace Screens
             json = FileSystem::ReadFile(MAIN_SCREEN_CONFIG_PATH);
         }
 
-        const uint colorCount = 4;
+        const uint colorCount = 3;
         String colorNames[colorCount]{
             CONFIG_BACK_COLOR,
             CONFIG_CLOCK_MAIN_COLOR,
-            CONFIG_CLOCK_SECOND_COLOR,
-            CONFIG_ERROR_COLOR,
-        };
+            CONFIG_CLOCK_SECOND_COLOR};
 
         uint16_t clockMainColor;
         uint16_t clockSecondColor;
-        uint16_t errorColor;
 
         uint16_t *colors[colorCount]{
             &this->backColor,
             &clockMainColor,
-            &clockSecondColor,
-            &errorColor};
+            &clockSecondColor};
 
         bool loadRes = DrawUtils::LoadColorsFromJson(json, colorNames, colors, colorCount);
 
@@ -119,11 +115,11 @@ namespace Screens
             this->digitalClock->SetBackColor(this->backColor);
             this->digitalClock->SetMainColor(clockMainColor);
             this->digitalClock->SetClockSecondColor(clockSecondColor);
-        }
 
-        for (const auto &control : controls)
-        {
-            control->ReDraw(true);
+            for (const auto &control : controls)
+            {
+                control->ReDraw(true);
+            }
         }
     }
 
@@ -133,15 +129,12 @@ namespace Screens
         String configNames[configCount]{
             CONFIG_BACK_COLOR,
             CONFIG_CLOCK_MAIN_COLOR,
-            CONFIG_CLOCK_SECOND_COLOR,
-            CONFIG_ERROR_COLOR};
+            CONFIG_CLOCK_SECOND_COLOR};
 
         String datas[configCount]{
             DrawUtils::GetJsonColor(0, 0, 0),
             DrawUtils::GetJsonColor(0, 0, 255),
-            DrawUtils::GetJsonColor(0, 0, 200),
-            DrawUtils::GetJsonColor(255, 0, 0),
-        };
+            DrawUtils::GetJsonColor(0, 0, 200)};
 
         FileSystem::WriteFile(
             MAIN_SCREEN_CONFIG_PATH,
@@ -196,25 +189,61 @@ namespace Screens
         this->labelMessage->DrawText(msg, Controls::Label::TextAlignment::Center);
     }
 
-    void MainScreen::SetTime(const Clock::Clock &clock)
+    void MainScreen::SetTime(const Clock::Time &time, const Clock::Date &date)
     {
-        auto time = clock.GetTime();
         this->digitalClock->SetTime(
             (byte)time.hour,
             (byte)time.minute,
             ((int)(time.second)) % 2 == 1);
         this->digitalClock->ReDraw();
 
-        auto newDate = clock.GetDate();
-        if (this->nowDate != newDate)
+        if (this->nowDate != date)
         {
-            this->labelDate->DrawText(clock.GetDateString(), Controls::Label::TextAlignment::Center);
-            this->nowDate = newDate;
+            this->nowDate = date;
+            DrawDate();
         }
+    }
+
+    void MainScreen::DrawDate()
+    {
+        String dateString;
+
+        if (this->isTimeSync)
+        {
+            char dateBuf[11];
+
+            dateBuf[0] = this->nowDate.day / 10 + '0';
+            dateBuf[1] = this->nowDate.day % 10 + '0';
+            dateBuf[2] = '.';
+            dateBuf[3] = this->nowDate.month / 10 + '0';
+            dateBuf[4] = this->nowDate.month % 10 + '0';
+            dateBuf[5] = '.';
+
+            int year = this->nowDate.year;
+            dateBuf[6] = year / 1000 + '0';
+            year %= 1000;
+
+            dateBuf[7] = year / 100 + '0';
+            year %= 100;
+
+            dateBuf[8] = year / 10 + '0';
+            dateBuf[9] = year % 10 + '0';
+            dateBuf[10] = '\0';
+
+            dateString = dateBuf;
+        }
+        else
+        {
+            dateString = F("Time not sync");
+        }
+
+        this->labelDate->DrawText(String(dateString), Controls::Label::TextAlignment::Center);
     }
 
     void MainScreen::SetTimeOk(bool isOk)
     {
+        this->isTimeSync = isOk;
+        DrawDate();
     }
 
     MainScreen::~MainScreen()

@@ -14,12 +14,6 @@ namespace Screens
 {
     class MainScreen : public Screen
     {
-    public:
-        void SetWeather(const Weather::WeatherData &data);
-        void SetTime(const Clock::Clock &clock);
-
-        void SetMessage(const String &msg);
-        void SetTimeOk(bool isOk);
 
     private:
         Weather::WeatherData nowWeather;
@@ -34,12 +28,21 @@ namespace Screens
         Controls::Label *labelTemp;
         Controls::MultilineLable *labelWeatherDescription;
 
+        bool isTimeSync;
+
         void DrawWeather();
+        void DrawDate();
 
         void CreateDefaultConfig() override;
         void EnterFocus() override;
 
     public:
+        void SetWeather(const Weather::WeatherData &data);
+        void SetTime(const Clock::Time &time, const Clock::Date &date);
+
+        void SetMessage(const String &msg);
+        void SetTimeOk(bool isOk);
+
         void ReloadConfig() override;
 
         MainScreen(TFT_eSPI *lcd, int width, int height);
