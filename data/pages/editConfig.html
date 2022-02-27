@@ -44,7 +44,6 @@
             document.getElementById("mainScreenBackColor").value = rgbToHex(json.backColor);
             document.getElementById("mainScreenMainColor").value = rgbToHex(json.clockMainColor);
             document.getElementById("mainScreenSecondColor").value = rgbToHex(json.clockSecondColor);
-            document.getElementById("mainScreenErrorColor").value = rgbToHex(json.errorColor);
         }
 
         function LoadConfigSpectrum() {
@@ -61,8 +60,7 @@
             let config = {
                 backColor: HexToRGB(document.getElementById("mainScreenBackColor").value),
                 clockMainColor: HexToRGB(document.getElementById("mainScreenMainColor").value),
-                clockSecondColor: HexToRGB(document.getElementById("mainScreenSecondColor").value),
-                errorColor: HexToRGB(document.getElementById("mainScreenErrorColor").value),
+                clockSecondColor: HexToRGB(document.getElementById("mainScreenSecondColor").value)
             }
 
             let formData = new FormData();
@@ -159,10 +157,6 @@
             <tr>
                 <td style="width: 130px;">Clock second color</td>
                 <td><input type="color" id="mainScreenSecondColor"></td>
-            </tr>
-            <tr>
-                <td style="width: 130px;">Clock second color</td>
-                <td><input type="color" id="mainScreenErrorColor"></td>
             </tr>
         </table>
         <button style="float: right; width: 75px;" onclick="SetConfigClock()">Set</button>
