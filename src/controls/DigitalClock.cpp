@@ -17,32 +17,46 @@ namespace Controls
         this->hoursChanged = false;
         this->dotsChanged = false;
 
-        this->numSpace = (int)(rect.width * 0.02F);
+        int numSpace = rect.width * 2 / 100;
 
-        this->numWidth = (rect.width - this->numSpace * 6) / 5;
+        int numWidth = (rect.width - numSpace * 6) / 5;
         while (true)
         {
-            this->blockWidth = this->numWidth / 3;
+            this->blockWidth = numWidth / 3;
             while (this->blockWidth % 2 == 0)
             {
                 this->blockWidth--;
             }
-            this->blockHeight = this->numWidth - this->blockWidth / 2 * 2;
+            this->blockHeight = numWidth - this->blockWidth / 2 * 2;
 
-            this->numHeight = blockHeight * 2 + this->blockWidth + 2;
+            int numHeight = blockHeight * 2 + this->blockWidth + 2;
 
-            if (this->numHeight <= rect.height)
+            if (numHeight <= rect.height)
             {
                 break;
             }
 
-            this->numWidth--;
+            numWidth--;
         }
 
-        this->numWidth += 2;
+        numWidth += 2;
 
-        this->dotSpacePosX = this->numWidth * 2 + this->numSpace * 3;
-        this->dotSpaceWidth = rect.width - this->dotSpacePosX * 2;
+        this->dotCenterPosX = rect.width / 2;
+        this->dotCenterPosY = rect.height / 2;
+
+        this->dotDeltaY = rect.height / 5;
+        this->dotRadius = this->dotDeltaY / 2;
+
+        if (this->dotRadius < 2)
+        {
+            this->dotRadius = 2;
+        }
+
+        this->numPositions[0] = this->dotCenterPosX - this->dotRadius - (numSpace + numWidth) * 2;
+        this->numPositions[1] = this->dotCenterPosX - this->dotRadius - (numSpace + numWidth) * 1;
+
+        this->numPositions[2] = this->dotCenterPosX + this->dotRadius + numSpace;
+        this->numPositions[3] = this->dotCenterPosX + this->dotRadius + numSpace * 2 + numWidth;
     }
 
     void DigitalClock::SetClockSecondColor(uint16_t color)
@@ -58,47 +72,36 @@ namespace Controls
         {
             this->hoursChanged = false;
 
-            DrawNum(this->nowHours / 10, this->numSpace, 0);
-            DrawNum(this->nowHours % 10, this->numSpace * 2 + this->numWidth, 0);
+            DrawNum(this->nowHours / 10, numPositions[0], 0);
+            DrawNum(this->nowHours % 10, numPositions[1], 0);
         }
 
         if (this->minutesChanged || force)
         {
             this->minutesChanged = false;
 
-            DrawNum(this->nowMinutes / 10, controlRect.width - (this->numSpace + this->numWidth) * 2, 0);
-            DrawNum(this->nowMinutes % 10, controlRect.width - (this->numSpace + this->numWidth), 0);
+            DrawNum(this->nowMinutes / 10, numPositions[2], 0);
+            DrawNum(this->nowMinutes % 10, numPositions[3], 0);
         }
 
         if (this->dotsChanged || force)
         {
             this->dotsChanged = false;
 
-            int heightDiv5 = this->numHeight / 5;
-            int dotRadius = heightDiv5 / 2;
-
-            if (dotRadius < 2)
-            {
-                dotRadius = 2;
-            }
-
-            int dotX = this->dotSpacePosX + this->dotSpaceWidth / 2;
-            int dotY = this->numHeight / 2;
-
             uint16_t dotColor = this->needDots ? this->mainColor : this->backColor;
 
             this->lcd->fillEllipse(
-                dotX,
-                dotY - heightDiv5,
-                dotRadius,
-                dotRadius,
+                this->dotCenterPosX,
+                this->dotCenterPosY - this->dotDeltaY,
+                this->dotRadius,
+                this->dotRadius,
                 dotColor);
 
             this->lcd->fillEllipse(
-                dotX,
-                dotY + heightDiv5,
-                dotRadius,
-                dotRadius,
+                this->dotCenterPosX,
+                this->dotCenterPosY + this->dotDeltaY,
+                this->dotRadius,
+                this->dotRadius,
                 dotColor);
         }
     }
@@ -131,7 +134,7 @@ namespace Controls
             return;
         }
 
-        //top
+        // top
         uint16_t color = (num != 1 && num != 4) ? this->mainColor : this->backColor;
         DrawBlock(
             x + this->blockWidth / 2 + 1,
@@ -139,7 +142,7 @@ namespace Controls
             color,
             Orientation::Horizontal);
 
-        //top left
+        // top left
         color = (num != 1 && num != 2 && num != 3 && num != 7) ? this->mainColor : this->backColor;
         DrawBlock(
             x - 1,
@@ -147,7 +150,7 @@ namespace Controls
             color,
             Orientation::Vertical);
 
-        //top right
+        // top right
         color = (num != 5 && num != 6) ? this->mainColor : this->backColor;
         DrawBlock(
             x + this->blockHeight,
@@ -155,7 +158,7 @@ namespace Controls
             color,
             Orientation::Vertical);
 
-        //center
+        // center
         color = (num > 1 && num != 7) ? this->mainColor : this->backColor;
         DrawBlock(
             x + this->blockWidth / 2 + 1,
@@ -163,7 +166,7 @@ namespace Controls
             color,
             Orientation::Horizontal);
 
-        //bottom left
+        // bottom left
         color = (num == 0 || num == 2 || num == 6 || num == 8) ? this->mainColor : this->backColor;
         DrawBlock(
             x - 1,
@@ -171,7 +174,7 @@ namespace Controls
             color,
             Orientation::Vertical);
 
-        //bottom right
+        // bottom right
         color = (num != 2) ? this->mainColor : this->backColor;
         DrawBlock(
             x + this->blockHeight,
@@ -179,7 +182,7 @@ namespace Controls
             color,
             Orientation::Vertical);
 
-        //bottom
+        // bottom
         color = (num != 1 && num != 4 && num != 7) ? this->mainColor : this->backColor;
         DrawBlock(
             x + this->blockWidth / 2 + 1,

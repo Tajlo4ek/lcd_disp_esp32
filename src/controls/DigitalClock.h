@@ -21,15 +21,15 @@ namespace Controls
 
         uint16_t clockSecondColor;
 
-        int numSpace;
-        int numWidth;
-        int numHeight;
+        int numPositions[4];
 
         int blockWidth;
         int blockHeight;
 
-        int dotSpaceWidth;
-        int dotSpacePosX;
+        int dotCenterPosX;
+        int dotCenterPosY;
+        int dotDeltaY;
+        int dotRadius;
 
         bool minutesChanged;
         byte nowMinutes;
