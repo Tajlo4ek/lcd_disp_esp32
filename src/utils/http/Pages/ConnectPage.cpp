@@ -23,11 +23,10 @@ namespace Pages
     {
         String json = F("{\"SSIDs\":[");
 
-        int wifiCount = WiFi.scanNetworks();
-        for (int i = 0; i < wifiCount; i++)
+        for (const auto &ssid : WifiUtils::GetSSIDs())
         {
             json += '"';
-            json += WiFi.SSID(i);
+            json += ssid;
             json += '"';
             json += ',';
         }

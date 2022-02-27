@@ -25,6 +25,7 @@ namespace WifiUtils
     void SaveWiFiConfig(WiFiConfig config);
 
     String GetIpString();
+    std::vector<String> GetSSIDs();
 
 }
 
