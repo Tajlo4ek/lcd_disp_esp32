@@ -393,7 +393,7 @@ void GetTimeTask(void *parameter)
                           myClock.ParseFromNtp(ntp);
                       });
 
-            if (failCount != 0)
+            if (failCount != 0 || firstLoad)
             {
                 MutexTask(screenMutex,
                           {
