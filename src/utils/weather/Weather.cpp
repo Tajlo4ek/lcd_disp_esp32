@@ -1,9 +1,9 @@
 #include "Weather.h"
 
 #include "utils/json/Json.h"
+#include "utils/http/HttpClient.h"
 
 #define WEATHER_HOST F("api.openweathermap.org")
-#define CONNECT_WAIT_TIME 3000
 
 namespace Weather
 {
@@ -12,56 +12,23 @@ namespace Weather
 
     bool GetCityCoordinates(CityCoordinates &coordinates, const String &city, const String &apiKey)
     {
-        String host = String(WEATHER_HOST);
-        WiFiClient client;
+        String host(WEATHER_HOST);
+        String startLine(F("GET /data/2.5/weather"));
+        std::vector<std::pair<String, String>> params{
+            {F("appid"), apiKey},
+            {F("q"), city},
+        };
 
-        if (client.connect(host.c_str(), 80) == 0)
-        {
-            return false;
-        }
+        int code = -1;
+        Json json(HttpClient::GetHttpContent(host, startLine, params, code));
 
-        client.print(F("GET /data/2.5/weather?appid="));
-        client.print(apiKey);
-        client.print(F("&q="));
-        client.print(city);
-
-        client.println(F(" HTTP/1.1"));
-        client.print(F("Host: "));
-        client.println(host);
-        client.println(F("Connection: close"));
-        client.println();
-
-        delay(CONNECT_WAIT_TIME);
-
-        String jsonString;
-        bool needAdd = false;
-        while (client.available())
-        {
-            char ch = (char)client.read();
-
-            if (ch == '{')
-            {
-                needAdd = true;
-            }
-
-            if (needAdd)
-            {
-                jsonString += ch;
-            }
-        }
-        client.stop();
-
-        Json json(jsonString);
-
-        bool isOk = json.ContainsName(F("coord"));
-        if (isOk == false)
-        {
-            return false;
-        }
-
+        bool isOk = code == 200;
+        isOk &= json.ContainsName(F("coord"));
         json = json[F("coord")];
 
-        isOk = json.ContainsName(F("lon")) && json.ContainsName(F("lat"));
+        isOk &= json.ContainsName(F("lon"));
+        isOk &= json.ContainsName(F("lat"));
+
         if (isOk == false)
         {
             return false;
@@ -78,51 +45,23 @@ namespace Weather
                     const String &apiKey)
     {
 
-        String host = String(WEATHER_HOST);
-        WiFiClient client;
+        String host(WEATHER_HOST);
+        String startLine(F("GET /data/2.5/onecall"));
+        std::vector<std::pair<String, String>> params{
+            {F("exclude"), F("minutely,hourly,alerts")},
+            {F("appid"), apiKey},
+            {F("lat"), String(cityCoordinates.lat)},
+            {F("lon"), String(cityCoordinates.lon)},
+        };
 
-        if (client.connect(host.c_str(), 80) == 0)
-        {
-            return false;
-        }
+        int code = -1;
+        Json json(HttpClient::GetHttpContent(host, startLine, params, code));
 
-        client.print(F("GET /data/2.5/onecall?exclude=minutely,hourly,alerts"));
-        client.print(F("&appid="));
-        client.print(apiKey);
-        client.print(F("&lat="));
-        client.print(cityCoordinates.lat);
-        client.print(F("&lon="));
-        client.print(cityCoordinates.lon);
+        bool isOk = code == 200;
+        isOk &= json.ContainsName(F("current"));
+        isOk &= json.ContainsName(F("daily"));
 
-        client.println(F(" HTTP/1.1"));
-        client.print(F("Host: "));
-        client.println(host);
-        client.println(F("Connection: close"));
-        client.println();
-
-        delay(CONNECT_WAIT_TIME);
-
-        String jsonString;
-        bool needAdd = false;
-        while (client.available())
-        {
-            char ch = (char)client.read();
-
-            if (ch == '{')
-            {
-                needAdd = true;
-            }
-
-            if (needAdd)
-            {
-                jsonString += ch;
-            }
-        }
-        client.stop();
-
-        Json json(jsonString);
-
-        if ((json.ContainsName(F("current")) || json.ContainsName(F("daily"))) == false)
+        if (isOk == false)
         {
             return false;
         }

@@ -2,7 +2,7 @@
 #define _WEATHER_H_
 
 #include <Arduino.h>
-#include <WiFiClient.h>
+
 
 namespace Weather
 {
