@@ -16,7 +16,7 @@ namespace Screens
     {
 
     private:
-        Weather::WeatherData nowWeather;
+        Weather::CurrentWeaterData nowWeather;
         Clock::Date nowDate;
 
         Controls::Label *labelMessage;
@@ -37,7 +37,7 @@ namespace Screens
         void EnterFocus() override;
 
     public:
-        void SetWeather(const Weather::WeatherData &data);
+        void SetWeather(const Weather::CurrentWeaterData &data);
         void SetTime(const Clock::Time &time, const Clock::Date &date);
 
         void SetMessage(const String &msg);

@@ -1,36 +1,26 @@
 #include "Weather.h"
 
-#include "utils/json/JsonParser.h"
+#include "utils/json/Json.h"
+
+#define WEATHER_HOST F("api.openweathermap.org")
+#define CONNECT_WAIT_TIME 3000
 
 namespace Weather
 {
-    void ParseWeather(const String &json, WeatherData &weather, bool &isOk);
-    WeatherData GetWether(bool &isOk, const String &city, const String &apiKey);
-    void SetAbortWeather(WeatherData &weather, const String &description);
+    bool ParseCurrentWeather(CurrentWeaterData &currentWeather, const Json &json);
+    bool ParseDailyWeather(DailyWeatherData &dailyWeather, const Json &json);
 
-    WeatherData GetWether(bool &isOk, const String &city, const String &apiKey)
+    bool GetCityCoordinates(CityCoordinates &coordinates, const String &city, const String &apiKey)
     {
-        WeatherData weatherData;
-
-        if (city.isEmpty() || apiKey.isEmpty())
-        {
-            SetAbortWeather(weatherData, F("check city or apiKey"));
-            isOk = false;
-            return weatherData;
-        }
-
-        String host = String(F("api.openweathermap.org"));
+        String host = String(WEATHER_HOST);
         WiFiClient client;
 
         if (client.connect(host.c_str(), 80) == 0)
         {
-            SetAbortWeather(weatherData, F("cannot connect to server"));
-            isOk = false;
-            return weatherData;
+            return false;
         }
 
-        client.print(F("GET "));
-        client.print(F("/data/2.5/weather?appid="));
+        client.print(F("GET /data/2.5/weather?appid="));
         client.print(apiKey);
         client.print(F("&q="));
         client.print(city);
@@ -41,69 +31,181 @@ namespace Weather
         client.println(F("Connection: close"));
         client.println();
 
-        delay(3000);
+        delay(CONNECT_WAIT_TIME);
 
-        String json;
+        String jsonString;
+        bool needAdd = false;
         while (client.available())
         {
-            json += (char)client.read();
+            char ch = (char)client.read();
+
+            if (ch == '{')
+            {
+                needAdd = true;
+            }
+
+            if (needAdd)
+            {
+                jsonString += ch;
+            }
         }
-        json += '}';
-
         client.stop();
-        ParseWeather(json, weatherData, isOk);
 
-        return weatherData;
+        Json json(jsonString);
+
+        bool isOk = json.ContainsName(F("coord"));
+        if (isOk == false)
+        {
+            return false;
+        }
+
+        json = json[F("coord")];
+
+        isOk = json.ContainsName(F("lon")) && json.ContainsName(F("lat"));
+        if (isOk == false)
+        {
+            return false;
+        }
+
+        coordinates.lon = json[F("lon")].ToFloat();
+        coordinates.lat = json[F("lat")].ToFloat();
+        return true;
     }
 
-    void SetAbortWeather(WeatherData &weather, const String &description)
+    bool GetWeather(CurrentWeaterData &currentWeather,
+                    std::vector<DailyWeatherData> &dailyWeather,
+                    const CityCoordinates &cityCoordinates,
+                    const String &apiKey)
     {
-        weather.imageName = F("abort");
-        weather.description = description;
-        weather.temp = 99;
+
+        String host = String(WEATHER_HOST);
+        WiFiClient client;
+
+        if (client.connect(host.c_str(), 80) == 0)
+        {
+            return false;
+        }
+
+        client.print(F("GET /data/2.5/onecall?exclude=minutely,hourly,alerts"));
+        client.print(F("&appid="));
+        client.print(apiKey);
+        client.print(F("&lat="));
+        client.print(cityCoordinates.lat);
+        client.print(F("&lon="));
+        client.print(cityCoordinates.lon);
+
+        client.println(F(" HTTP/1.1"));
+        client.print(F("Host: "));
+        client.println(host);
+        client.println(F("Connection: close"));
+        client.println();
+
+        delay(CONNECT_WAIT_TIME);
+
+        String jsonString;
+        bool needAdd = false;
+        while (client.available())
+        {
+            char ch = (char)client.read();
+
+            if (ch == '{')
+            {
+                needAdd = true;
+            }
+
+            if (needAdd)
+            {
+                jsonString += ch;
+            }
+        }
+        client.stop();
+
+        Json json(jsonString);
+
+        if ((json.ContainsName(F("current")) || json.ContainsName(F("daily"))) == false)
+        {
+            return false;
+        }
+
+        ParseCurrentWeather(currentWeather, json[F("current")]);
+
+        json = json[F("daily")];
+        dailyWeather.clear();
+
+        for (const auto &dailyJson : json.GetArray())
+        {
+            DailyWeatherData weather;
+
+            bool isOk = ParseDailyWeather(weather, dailyJson);
+            if (isOk == false)
+            {
+                return false;
+            }
+
+            dailyWeather.push_back(weather);
+        }
+
+        return true;
     }
 
-    void ParseWeather(const String &json, WeatherData &weather, bool &isOk)
+    bool ParseCurrentWeather(CurrentWeaterData &currentWeather, const Json &json)
     {
-        String codString = JsonParser::GetJsonData(json, F("cod"), isOk);
+        bool isOk = json.ContainsName(F("temp"));
+        isOk &= json.ContainsName(F("pressure"));
+        isOk &= json.ContainsName(F("humidity"));
+        isOk &= json.ContainsName(F("weather"));
+
+        Json weatherJson = json[F("weather")][0];
+        isOk &= weatherJson.ContainsName(F("description"));
+        isOk &= weatherJson.ContainsName(F("icon"));
 
         if (isOk == false)
         {
-            SetAbortWeather(weather, F("cannot get gata"));
-            return;
+            return false;
         }
 
-        auto cod = codString.toInt();
-        if (cod != 200)
-        {
-            String decription = F("not sync. error: ");
-            decription += cod;
-            SetAbortWeather(weather, decription);
-            isOk = false;
-            return;
-        }
+        currentWeather.temp = json[F("temp")].ToInt() - 273;
+        currentWeather.humidity = json[F("humidity")].ToInt();
+        currentWeather.pressure = json[F("pressure")].ToInt();
+        currentWeather.description = weatherJson[F("description")].ToString();
+        currentWeather.imageName = weatherJson[F("icon")].ToString();
 
-        bool descIsOk;
-        bool imgIsOk;
-        bool tempIsOk;
-        weather.description = JsonParser::GetJsonData(json, F("description"), descIsOk);
-        weather.imageName = JsonParser::GetJsonData(json, F("icon"), imgIsOk);
-        weather.temp = JsonParser::GetJsonData(json, F("temp"), tempIsOk).toInt() - 273;
-
-        if ((descIsOk && imgIsOk && tempIsOk) == false)
-        {
-            SetAbortWeather(weather, F("parse error"));
-            isOk = false;
-            return;
-        }
-
-        auto firstChar = weather.description[0];
-        //first char to upper
-        if (firstChar >= 'a' && firstChar <= 'z')
-        {
-            weather.description.setCharAt(0, firstChar - ('a' - 'A'));
-        }
-        isOk = true;
+        return true;
     }
 
+    bool ParseDailyWeather(DailyWeatherData &dailyWeather, const Json &json)
+    {
+        bool isOk = json.ContainsName(F("dt"));
+        isOk &= json.ContainsName(F("pressure"));
+        isOk &= json.ContainsName(F("humidity"));
+
+        Json weatherJson = json[F("weather")][0];
+        isOk &= weatherJson.ContainsName(F("description"));
+        isOk &= weatherJson.ContainsName(F("icon"));
+
+        Json tempJson = json[F("temp")];
+        isOk &= tempJson.ContainsName(F("day"));
+        isOk &= tempJson.ContainsName(F("night"));
+        isOk &= tempJson.ContainsName(F("min"));
+        isOk &= tempJson.ContainsName(F("max"));
+
+        if (isOk == false)
+        {
+            return false;
+        }
+
+        dailyWeather.time = json[F("dt")].ToLong();
+
+        dailyWeather.temp = (tempJson[F("min")].ToInt() + tempJson[F("max")].ToInt()) / 2 - 273;
+        dailyWeather.tempDay = tempJson[F("day")].ToInt() - 273;
+        dailyWeather.tempNight = tempJson[F("night")].ToInt() - 273;
+
+        dailyWeather.humidity = json[F("humidity")].ToInt();
+        dailyWeather.pressure = json[F("pressure")].ToInt();
+
+        dailyWeather.description = weatherJson[F("description")].ToString();
+        dailyWeather.imageName = weatherJson[F("icon")].ToString();
+
+        return true;
+    }
 }

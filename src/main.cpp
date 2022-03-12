@@ -105,7 +105,7 @@ void setup()
 
     CreateButtons();
 
-    xTaskCreate(GetWeatherTask, String(F("update weather")).c_str(), 5 * 1024, NULL, 3, NULL);
+    xTaskCreate(GetWeatherTask, String(F("update weather")).c_str(), 20 * 1024, NULL, 3, NULL);
     xTaskCreate(GetTimeTask, String(F("update time")).c_str(), 5 * 1024, NULL, 3, NULL);
     xTaskCreate(ClockTickTIme, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
     xTaskCreate(UartTask, String(F("uart rec")).c_str(), 5 * 1024, NULL, 10, NULL);
@@ -345,18 +345,28 @@ void ParseCommandTask(void *parameter)
 
 void GetWeatherTask(void *parameter)
 {
+    String lastCity;
+    Weather::CityCoordinates coordinates;
+
     for (;;)
     {
-        String json = FileSystem::ReadFile(WEATHER_CONFIG_PATH);
-        auto weatherCity = JsonParser::GetJsonData(json, WEATHER_CONFIG_CITY);
-        auto weatherApiKey = JsonParser::GetJsonData(json, WEATHER_CONFIG_APIKEY);
+        Json json(FileSystem::ReadFile(WEATHER_CONFIG_PATH));
+        auto weatherCity = json[WEATHER_CONFIG_CITY].ToString();
+        auto weatherApiKey = json[WEATHER_CONFIG_APIKEY].ToString();
 
-        bool isOk;
-        auto weather = Weather::GetWether(isOk, weatherCity, weatherApiKey);
+        if (lastCity != weatherCity)
+        {
+            Weather::GetCityCoordinates(coordinates, weatherCity, weatherApiKey);
+            lastCity = weatherCity;
+        }
+
+        Weather::CurrentWeaterData currentWeather;
+        std::vector<Weather::DailyWeatherData> dailyWeather;
+        auto isOk = Weather::GetWeather(currentWeather, dailyWeather, coordinates, weatherApiKey);
 
         MutexTask(screenMutex,
                   {
-                      mainScreen->SetWeather(weather);
+                      mainScreen->SetWeather(currentWeather);
                   });
 
         if (isOk == true)

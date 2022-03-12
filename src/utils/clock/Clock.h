@@ -23,6 +23,31 @@ namespace Clock
         {
             return !(this->day == other.day && this->month == other.month && this->year == other.year);
         }
+
+        const String ToString() const
+        {
+            char dateBuf[11];
+
+            dateBuf[0] = day / 10 + '0';
+            dateBuf[1] = day % 10 + '0';
+            dateBuf[2] = '.';
+            dateBuf[3] = month / 10 + '0';
+            dateBuf[4] = month % 10 + '0';
+            dateBuf[5] = '.';
+
+            int bufYear = year;
+            dateBuf[6] = bufYear / 1000 + '0';
+            bufYear %= 1000;
+
+            dateBuf[7] = bufYear / 100 + '0';
+            bufYear %= 100;
+
+            dateBuf[8] = bufYear / 10 + '0';
+            dateBuf[9] = bufYear % 10 + '0';
+            dateBuf[10] = '\0';
+
+            return dateBuf;
+        }
     };
 
     class Clock

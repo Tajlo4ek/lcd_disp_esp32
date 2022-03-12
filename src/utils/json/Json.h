@@ -23,6 +23,7 @@ public:
 
     const String ToString() const;
     const int ToInt() const;
+    const long ToLong() const;
     const float ToFloat() const;
 };
 

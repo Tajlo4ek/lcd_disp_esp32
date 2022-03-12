@@ -8,7 +8,7 @@ namespace Clock
     {
         this->SetTime(0, 0, 0);
         this->SetDate(1, 1, 1970);
-        this->utc = utc;
+        this->utc = 0;
     }
 
     void Clock::SetUTC(int utc)

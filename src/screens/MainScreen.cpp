@@ -57,7 +57,7 @@ namespace Screens
         this->labelDate = new Controls::Label(lcd, labelDateRect);
         controls.push_back(this->labelDate);
 
-        nowWeather = {99, F("weather not sync"), F("abort")};
+        nowWeather = {99, 99, 99, F("weather not sync"), F("abort")};
 
         this->nowDate = {0, 0, 0};
         this->isTimeSync = false;
@@ -179,7 +179,7 @@ namespace Screens
         this->labelWeatherDescription->DrawText(this->nowWeather.description, Controls::Label::TextAlignment::Left);
     }
 
-    void MainScreen::SetWeather(const Weather::WeatherData &data)
+    void MainScreen::SetWeather(const Weather::CurrentWeaterData &data)
     {
         this->nowWeather = data;
         DrawWeather();
@@ -211,27 +211,7 @@ namespace Screens
 
         if (this->isTimeSync)
         {
-            char dateBuf[11];
-
-            dateBuf[0] = this->nowDate.day / 10 + '0';
-            dateBuf[1] = this->nowDate.day % 10 + '0';
-            dateBuf[2] = '.';
-            dateBuf[3] = this->nowDate.month / 10 + '0';
-            dateBuf[4] = this->nowDate.month % 10 + '0';
-            dateBuf[5] = '.';
-
-            int year = this->nowDate.year;
-            dateBuf[6] = year / 1000 + '0';
-            year %= 1000;
-
-            dateBuf[7] = year / 100 + '0';
-            year %= 100;
-
-            dateBuf[8] = year / 10 + '0';
-            dateBuf[9] = year % 10 + '0';
-            dateBuf[10] = '\0';
-
-            dateString = dateBuf;
+            dateString = nowDate.ToString();
         }
         else
         {

@@ -70,7 +70,6 @@ const Json Json::SubJson(int startInd, int &finishInd) const
         }
     }
 
-
     if (startInd > finishInd)
     {
         return Json("");
@@ -114,7 +113,6 @@ const Json Json::operator[](String name) const
         name += ':';
     }
     auto dataStart = this->data.indexOf(name);
-
 
     if (dataStart == -1)
     {
@@ -175,4 +173,9 @@ const int Json::ToInt() const
 const float Json::ToFloat() const
 {
     return data.toFloat();
+}
+
+const long Json::ToLong() const
+{
+    return data.toInt();
 }
