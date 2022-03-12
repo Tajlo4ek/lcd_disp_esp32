@@ -63,7 +63,7 @@
             heapChart.options.elements.line.borderWidth = 1;
             heapChart.options.animation = false;
 
-            GetData();
+            setInterval(GetData, 1000);
         }
 
         function GetData() {
@@ -88,8 +88,6 @@
 
                 labelMillis.textContent = "Uptime: " + uptime + "h " + parseNum(min, 2) + "m " + parseNum(sec, 2) + "s " + parseNum(ms, 3) + "ms";
             });
-
-            setTimeout(GetData, 1000);
         }
 
         function parseNum(num, minLen) {
