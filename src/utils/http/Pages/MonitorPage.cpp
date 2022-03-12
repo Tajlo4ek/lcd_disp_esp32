@@ -1,7 +1,7 @@
 #include "MonitorPage.h"
 
 #include "utils/fileSystem/FileSystem.h"
-#include "utils/json/JsonParser.h"
+#include "utils/json/Json.h"
 #include "utils/FileNames.h"
 #include "utils/Commands.h"
 
@@ -25,7 +25,7 @@ namespace Pages
     {
         const int dataCount = 3;
 
-        String names[dataCount]{
+        std::vector<String> names{
             F("millis"),
             F("freeHeap"),
             F("log"),
@@ -33,15 +33,15 @@ namespace Pages
 
         this->notSendData.replace(String('"'), F("\\\""));
 
-        String data[dataCount]{
+        std::vector<String> data{
             String(millis()),
             String(ESP.getFreeHeap()),
             this->notSendData,
         };
 
-        String json = JsonParser::BuildJson(names, data, dataCount);
+        Json json(names, data);
         this->notSendData.clear();
-        _HTTP->send(200, F("text/json"), json);
+        _HTTP->send(200, F("text/json"), json.ToString());
     }
 
     void MonitorPage::AddWebLog(const String &data)

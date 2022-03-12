@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <TFT_eSPI.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -8,7 +9,7 @@
 #include "utils/wifi/WifiUtils.h"
 #include "utils/http/HttpServer.h"
 #include "utils/weather/Weather.h"
-#include "utils/json/JsonParser.h"
+#include "utils/json/Json.h"
 #include "utils/fileSystem/FileSystem.h"
 #include "utils/button/Button.h"
 
@@ -21,8 +22,6 @@
 
 #include "screens/MainScreen.h"
 #include "screens/VisualizerScreen.h"
-
-#include <TFT_eSPI.h>
 
 void InitWifi();
 
@@ -378,19 +377,19 @@ void GetTimeTask(void *parameter)
 
     for (;;)
     {
-        String json = FileSystem::ReadFile(TIME_CONFIG_PATH);
-        auto ntpServer = JsonParser::GetJsonData(json, TIME_CONFIG_NTP);
-        auto utc = JsonParser::GetJsonData(json, TIME_CONFIG_UTC).toInt();
+        Json json(FileSystem::ReadFile(TIME_CONFIG_PATH));
+        auto ntpServer = json[TIME_CONFIG_NTP].ToString();
+        auto utc = json[TIME_CONFIG_UTC].ToInt();
 
         bool isOk;
-        auto ntp = NtpTime::AskNTP(ntpServer, isOk);
+        auto time = NtpTime::AskNTP(ntpServer, isOk);
 
         if (isOk == true)
         {
             MutexTask(timeMutex,
                       {
                           myClock.SetUTC(utc);
-                          myClock.ParseFromNtp(ntp);
+                          myClock.ParseFromNtp(time);
                       });
 
             if (failCount != 0 || firstLoad)

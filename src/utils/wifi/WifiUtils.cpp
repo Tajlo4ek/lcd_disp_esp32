@@ -2,7 +2,7 @@
 
 #include "utils/FileNames.h"
 #include "utils/fileSystem/FileSystem.h"
-#include "utils/json/JsonParser.h"
+#include "utils/json/Json.h"
 
 #define SSID_KEY F("ssid")
 #define PASSWORD_KEY F("pass")
@@ -67,33 +67,24 @@ namespace WifiUtils
             return config;
         }
 
-        String json = FileSystem::ReadFile(WIFI_CONFIG_PATH);
+        Json json(FileSystem::ReadFile(WIFI_CONFIG_PATH));
 
-        bool isOk = false;
-        auto ssid = JsonParser::GetJsonData(json, SSID_KEY, isOk);
-        if (isOk == false)
+        if (json.ContainsName(SSID_KEY) == false || json.ContainsName(PASSWORD_KEY) == false)
         {
             return config;
         }
 
-        auto password = JsonParser::GetJsonData(json, PASSWORD_KEY, isOk);
-        if (isOk == false)
-        {
-            return config;
-        }
-
-        config.ssid = ssid;
-        config.password = password;
+        config.ssid = json[SSID_KEY].ToString();
+        config.password = json[PASSWORD_KEY].ToString();
         return config;
     }
 
     void SaveWiFiConfig(WiFiConfig config)
     {
-        const int dataCount = 2;
-        String names[dataCount]{SSID_KEY, PASSWORD_KEY};
-        String data[dataCount]{config.ssid, config.password};
-        String json = JsonParser::BuildJson(names, data, dataCount);
-        FileSystem::WriteFile(WIFI_CONFIG_PATH, json);
+        std::vector<String> names{SSID_KEY, PASSWORD_KEY};
+        std::vector<String> data{config.ssid, config.password};
+        Json json(names, data);
+        FileSystem::WriteFile(WIFI_CONFIG_PATH, json.ToString());
     }
 
     std::vector<String> GetSSIDs()

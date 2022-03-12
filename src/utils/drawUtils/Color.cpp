@@ -1,34 +1,26 @@
 #include "Color.h"
 
-#include "utils/json/JsonParser.h"
-
 namespace DrawUtils
 {
     bool GetColorPart(const String &data, byte &part);
 
-    String GetJsonColor(const ColorRGB &color)
+    Json GetJsonColor(const ColorRGB &color)
     {
         return GetJsonColor(color.red, color.green, color.blue);
     }
 
-    String GetJsonColor(const byte r, const byte g, const byte b)
+    Json GetJsonColor(const byte r, const byte g, const byte b)
     {
-        const int dataCount = 3;
-        String names[dataCount]{F("red"), F("green"), F("blue")};
-        String data[dataCount]{String(r), String(g), String(b)};
-        return JsonParser::BuildJson(names, data, dataCount);
+        std::vector<String> names{F("red"), F("green"), F("blue")};
+        std::vector<String> data{String(r), String(g), String(b)};
+        return Json(names, data);
     }
 
-    const bool ColorFromJson(const String &json, ColorRGB &color)
+    const bool ColorFromJson(const Json &json, ColorRGB &color)
     {
-        if (json.isEmpty())
-        {
-            return false;
-        }
-
-        return GetColorPart(JsonParser::GetJsonData(json, F("red")), color.red) &&
-               GetColorPart(JsonParser::GetJsonData(json, F("green")), color.green) &&
-               GetColorPart(JsonParser::GetJsonData(json, F("blue")), color.blue);
+        return GetColorPart(json[F("red")].ToString(), color.red) &&
+               GetColorPart(json[F("green")].ToString(), color.green) &&
+               GetColorPart(json[F("blue")].ToString(), color.blue);
     }
 
     const uint16_t Get565Color(const ColorRGB &color)
@@ -57,16 +49,16 @@ namespace DrawUtils
         return false;
     }
 
-    const bool LoadColorsFromJson(const String &json, const String *colorNames, uint16_t **colors, const uint count)
+    const bool ColorsFromJson(const Json &json, const String *colorNames, uint16_t **colors, const uint count)
     {
         for (uint colorNum = 0; colorNum < count; colorNum++)
         {
-            bool isOk = false;
-            auto colorData = JsonParser::GetJsonData(json, colorNames[colorNum], isOk);
-            if (isOk == false)
+            if (json.ContainsName(colorNames[colorNum]) == false)
             {
                 return false;
             }
+
+            auto colorData = json[colorNames[colorNum]];
 
             ColorRGB color;
             if (DrawUtils::ColorFromJson(colorData, color) == false)

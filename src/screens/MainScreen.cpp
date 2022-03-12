@@ -5,7 +5,7 @@
 #include "utils/weather/WeatherImages.h"
 
 #include "utils/fileSystem/FileSystem.h"
-#include "utils/json/JsonParser.h"
+#include "utils/json/Json.h"
 #include "utils/DrawUtils/Color.h"
 
 namespace Screens
@@ -67,12 +67,14 @@ namespace Screens
 
     void MainScreen::ReloadConfig()
     {
-        String json = FileSystem::ReadFile(MAIN_SCREEN_CONFIG_PATH);
-        if (json.isEmpty())
+        String jsonString = FileSystem::ReadFile(MAIN_SCREEN_CONFIG_PATH);
+        if (jsonString.isEmpty())
         {
             this->CreateDefaultConfig();
-            json = FileSystem::ReadFile(MAIN_SCREEN_CONFIG_PATH);
+            jsonString = FileSystem::ReadFile(MAIN_SCREEN_CONFIG_PATH);
         }
+
+        Json json(jsonString);
 
         const uint colorCount = 3;
         String colorNames[colorCount]{
@@ -88,7 +90,7 @@ namespace Screens
             &clockMainColor,
             &clockSecondColor};
 
-        bool loadRes = DrawUtils::LoadColorsFromJson(json, colorNames, colors, colorCount);
+        bool loadRes = DrawUtils::ColorsFromJson(json, colorNames, colors, colorCount);
 
         if (loadRes == false)
         {
@@ -125,20 +127,19 @@ namespace Screens
 
     void MainScreen::CreateDefaultConfig()
     {
-        const uint configCount = 4;
-        String configNames[configCount]{
+        std::vector<String> configNames{
             CONFIG_BACK_COLOR,
             CONFIG_CLOCK_MAIN_COLOR,
             CONFIG_CLOCK_SECOND_COLOR};
 
-        String datas[configCount]{
-            DrawUtils::GetJsonColor(0, 0, 0),
-            DrawUtils::GetJsonColor(0, 0, 255),
-            DrawUtils::GetJsonColor(0, 0, 200)};
+        std::vector<String> datas{
+            DrawUtils::GetJsonColor(0, 0, 0).ToString(),
+            DrawUtils::GetJsonColor(0, 0, 255).ToString(),
+            DrawUtils::GetJsonColor(0, 0, 200).ToString()};
 
         FileSystem::WriteFile(
             MAIN_SCREEN_CONFIG_PATH,
-            JsonParser::BuildJson(configNames, datas, configCount));
+            Json(configNames, datas).ToString());
     }
 
     void MainScreen::EnterFocus()

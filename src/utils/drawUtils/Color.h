@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Arduino.h"
+#include "utils/json/Json.h"
 
 namespace DrawUtils
 {
@@ -11,13 +12,12 @@ namespace DrawUtils
         byte blue;
     };
 
-    String GetJsonColor(const ColorRGB &color);
-    String GetJsonColor(const byte r, const byte g, const byte b);
-
-    const bool ColorFromJson(const String &json, ColorRGB &color);
+    Json GetJsonColor(const ColorRGB &color);
+    Json GetJsonColor(const byte r, const byte g, const byte b);
 
     const uint16_t Get565Color(const byte r, const byte g, const byte b);
     const uint16_t Get565Color(const ColorRGB &color);
 
-    const bool LoadColorsFromJson(const String &json, const String *colorNames, uint16_t **colors, const uint count);
+    const bool ColorFromJson(const Json &json, ColorRGB &color);
+    const bool ColorsFromJson(const Json &json, const String *colorNames, uint16_t **colors, const uint count);
 }

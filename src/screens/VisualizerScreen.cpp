@@ -4,7 +4,7 @@
 #include "utils/FileNames.h"
 
 #include "utils/fileSystem/FileSystem.h"
-#include "utils/json/JsonParser.h"
+#include "utils/json/Json.h"
 #include "utils/drawUtils/Color.h"
 
 namespace Screens
@@ -33,12 +33,14 @@ namespace Screens
 
     void VisualizerScreen::ReloadConfig()
     {
-        auto json = FileSystem::ReadFile(SPECTRUM_CONFIG_PATH);
-        if (json.isEmpty())
+        auto jsonString = FileSystem::ReadFile(SPECTRUM_CONFIG_PATH);
+        if (jsonString.isEmpty())
         {
             this->CreateDefaultConfig();
-            json = FileSystem::ReadFile(SPECTRUM_CONFIG_PATH);
+            jsonString = FileSystem::ReadFile(SPECTRUM_CONFIG_PATH);
         }
+
+        Json json(jsonString);
 
         const uint colorCount = 5;
         String colorNames[colorCount]{
@@ -62,7 +64,7 @@ namespace Screens
             &maxColor,
         };
 
-        bool loadRes = DrawUtils::LoadColorsFromJson(json, colorNames, colors, colorCount);
+        bool loadRes = DrawUtils::ColorsFromJson(json, colorNames, colors, colorCount);
 
         if (loadRes == false)
         {
@@ -83,8 +85,7 @@ namespace Screens
 
     void VisualizerScreen::CreateDefaultConfig()
     {
-        const uint configCount = 5;
-        String configNames[configCount]{
+        std::vector<String> configNames{
             CONFIG_BACK_COLOR,
             CONFIG_LOW_COLOR,
             CONFIG_MEDIUM_COLOR,
@@ -92,17 +93,17 @@ namespace Screens
             CONFIG_MAX_COLOR,
         };
 
-        String datas[configCount]{
-            DrawUtils::GetJsonColor(0, 0, 0),
-            DrawUtils::GetJsonColor(0, 255, 0),
-            DrawUtils::GetJsonColor(255, 255, 0),
-            DrawUtils::GetJsonColor(255, 0, 0),
-            DrawUtils::GetJsonColor(0, 255, 255),
+        std::vector<String> datas{
+            DrawUtils::GetJsonColor(0, 0, 0).ToString(),
+            DrawUtils::GetJsonColor(0, 255, 0).ToString(),
+            DrawUtils::GetJsonColor(255, 255, 0).ToString(),
+            DrawUtils::GetJsonColor(255, 0, 0).ToString(),
+            DrawUtils::GetJsonColor(0, 255, 255).ToString(),
         };
 
         FileSystem::WriteFile(
             SPECTRUM_CONFIG_PATH,
-            JsonParser::BuildJson(configNames, datas, configCount));
+            Json(configNames, datas).ToString());
     }
 
     String VisualizerScreen::ParseMessage(const String &message)
