@@ -38,12 +38,6 @@ namespace Screens
         void SetVisible(bool isVisible);
 
         Screen(TFT_eSPI *lcd, int width, int height);
-
-        virtual bool OnBtnLeftClick();
-        virtual bool OnBtnRightClick();
-        virtual bool OnBtnCenterClick();
-        virtual bool OnBtnUpClick();
-        virtual bool OnBtnDownClick();
     };
 }
 

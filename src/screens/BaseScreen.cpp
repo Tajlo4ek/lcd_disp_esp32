@@ -40,10 +40,4 @@ namespace Screens
             LeaveFocus();
         }
     }
-
-    bool Screen::OnBtnLeftClick() { return false; }
-    bool Screen::OnBtnRightClick() { return false; }
-    bool Screen::OnBtnCenterClick() { return false; }
-    bool Screen::OnBtnUpClick() { return false; }
-    bool Screen::OnBtnDownClick() { return false; }
 }

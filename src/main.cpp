@@ -12,7 +12,6 @@
 #include "utils/json/Json.h"
 #include "Configs/Configs.h"
 #include "utils/fileSystem/FileSystem.h"
-#include "utils/button/Button.h"
 
 #include "utils/FileNames.h"
 #include "utils/Commands.h"
@@ -57,14 +56,6 @@ SemaphoreHandle_t commandQueueMutex;
 
 std::queue<String> commands;
 
-#define BTN_PIN_OK 27
-#define BTN_PIN_LEFT 12
-#define BTN_PIN_DOWN 14
-#define BTN_PIN_UP 26
-#define BTN_PIN_RIGHT 13
-QueueHandle_t buttonClickQueue;
-std::map<Utils::ButtonName, Utils::Button> buttons;
-
 Screens::MainScreen *mainScreen;
 Screens::VisualizerScreen *visualizerScreen;
 
@@ -77,8 +68,6 @@ void setup()
     timeMutex = xSemaphoreCreateMutex();
     screenMutex = xSemaphoreCreateMutex();
     commandQueueMutex = xSemaphoreCreateMutex();
-
-    buttonClickQueue = xQueueCreate(100, sizeof(Utils::ButtonName));
 
     Serial.begin(115200);
     FileSystem::Init();
@@ -100,86 +89,17 @@ void setup()
     InitWifi();
     HttpServer::Init(CheckCommand);
 
-    CreateButtons();
-
     xTaskCreate(GetWeatherTask, String(F("update weather")).c_str(), 20 * 1024, NULL, 3, NULL);
     xTaskCreate(GetTimeTask, String(F("update time")).c_str(), 5 * 1024, NULL, 3, NULL);
     xTaskCreate(ClockTickTIme, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
     xTaskCreate(UartTask, String(F("uart rec")).c_str(), 5 * 1024, NULL, 10, NULL);
     xTaskCreate(ParseCommandTask, String(F("command")).c_str(), 10 * 1024, NULL, 10, NULL);
-    xTaskCreate(CheckButtonsTask, String(F("buttons")).c_str(), 10 * 1024, NULL, 10, NULL);
     xTaskCreate(ServerTask, String(F("server")).c_str(), 20 * 1024, NULL, 3, NULL);
 }
 
 void loop()
 {
     vTaskDelete(NULL);
-}
-
-void CreateButtons()
-{
-#define CREATE_BUTTON(pin, name, func)                 \
-    {                                                  \
-        buttons[name] = Utils::Button();               \
-        buttons[name].SetClickCallback([]() { func }); \
-        pinMode(pin, INPUT);                           \
-        attachInterrupt(                               \
-            pin, []() {                                         \
-                Utils::ButtonName value = name;                 \
-                xQueueSendFromISR(buttonClickQueue, &value, 0); },                             \
-            RISING);                                   \
-    }
-
-#define CHECK_BTN_CLICK_SCREEN(screenFunc, notScreenFunc) \
-    {                                                     \
-        bool isInterapt;                                  \
-        MutexTask(screenMutex,                            \
-                  {                                       \
-                      isInterapt = screenFunc;            \
-                  });                                     \
-        if (isInterapt == false)                          \
-        {                                                 \
-            notScreenFunc;                                \
-        }                                                 \
-    }
-
-    CREATE_BUTTON(
-        BTN_PIN_RIGHT,
-        Utils::ButtonName::NameRight,
-        CHECK_BTN_CLICK_SCREEN(
-            activeScreen->OnBtnRightClick(),
-            SetActiveScreen(nowScreenNum + 1)));
-
-    CREATE_BUTTON(
-        BTN_PIN_LEFT,
-        Utils::ButtonName::NameLeft,
-        CHECK_BTN_CLICK_SCREEN(
-            activeScreen->OnBtnLeftClick(),
-            SetActiveScreen(nowScreenNum - 1)));
-
-    CREATE_BUTTON(
-        BTN_PIN_OK,
-        Utils::ButtonName::NameOk,
-        {
-            // Serial.println("NameOk");
-        });
-
-    CREATE_BUTTON(
-        BTN_PIN_DOWN,
-        Utils::ButtonName::NameDown,
-        {
-            // Serial.println("NameDown");
-        });
-
-    CREATE_BUTTON(
-        BTN_PIN_UP,
-        Utils::ButtonName::NameUp,
-        {
-            // Serial.println("NameUp");
-        });
-
-#undef CHECK_BTN_CLICK_SCREEN
-#undef CREATE_BUTTON
 }
 
 String CheckCommand(const String &data)
@@ -301,16 +221,6 @@ void UartTask(void *parameter)
         }
 
         vTaskDelay(5 / portTICK_PERIOD_MS);
-    }
-}
-
-void CheckButtonsTask(void *parameter)
-{
-    for (;;)
-    {
-        Utils::ButtonName btnName;
-        xQueueReceive(buttonClickQueue, &btnName, portMAX_DELAY);
-        buttons[btnName].CheckClick();
     }
 }
 
