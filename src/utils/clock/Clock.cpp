@@ -8,12 +8,6 @@ namespace Clock
     {
         this->SetTime(0, 0, 0);
         this->SetDate(1, 1, 1970);
-        this->utc = 0;
-    }
-
-    void Clock::SetUTC(int utc)
-    {
-        this->utc = utc;
     }
 
     void Clock::SetTime(int hour, int minute, int second)
@@ -89,9 +83,9 @@ namespace Clock
         return Time{nowHour, nowMinute, nowSecond, nowMillisec};
     }
 
-    void Clock::ParseFromNtp(unsigned long time)
+    void Clock::ParseFromNtp(unsigned long time, int utc)
     {
-        time = time + this->utc * 3600;
+        time = time + utc * 3600;
 
         int second = time % 60;
         time /= 60; // now it is minutes

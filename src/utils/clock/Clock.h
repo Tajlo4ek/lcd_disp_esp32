@@ -54,7 +54,6 @@ namespace Clock
     {
     public:
         Clock();
-        void SetUTC(int utc);
         void SetTime(int hour, int minute, int second);
         void SetDate(int day, int month, int year);
         void AddMillis(unsigned long millisec);
@@ -62,11 +61,10 @@ namespace Clock
         const Time GetTime() const;
         const Date GetDate() const;
 
-        void ParseFromNtp(unsigned long time);
+        void ParseFromNtp(unsigned long time, int utc);
 
     private:
         Date nowDate;
-        int utc;
         unsigned long nowMillis;
 
         static const byte monthDays[];

@@ -10,6 +10,7 @@
 #include "utils/http/HttpServer.h"
 #include "utils/weather/Weather.h"
 #include "utils/json/Json.h"
+#include "Configs/Configs.h"
 #include "utils/fileSystem/FileSystem.h"
 #include "utils/button/Button.h"
 
@@ -40,13 +41,9 @@ void SetActiveScreen(int screenNum);
 TFT_eSPI lcd = TFT_eSPI();
 #define LCD_ROTATE 1
 
-#define WEATHER_CONFIG_CITY F("city")
-#define WEATHER_CONFIG_APIKEY F("apiKey")
 #define WEATHER_UPDATE_TIME_OK 10 * 60 * 1000
 #define WEATHER_UPDATE_TIME_FAIL 1 * 60 * 1000
 
-#define TIME_CONFIG_NTP F("ntp")
-#define TIME_CONFIG_UTC F("utc")
 #define TIME_UPDATE_TIME_OK 30 * 60 * 1000
 #define TIME_UPDATE_TIME_FAIL 1 * 60 * 1000
 #define TIME_UPDATE_FAIL_COUNT 10
@@ -187,7 +184,6 @@ void CreateButtons()
 
 String CheckCommand(const String &data)
 {
-
     String res = COMMAND_FAIL;
 
     if (data[data.length() - 1] != COMMAND_STOP_CHAR)
@@ -347,29 +343,49 @@ void GetWeatherTask(void *parameter)
 {
     String lastCity;
     Weather::CityCoordinates coordinates;
+    bool isCoorOk = false;
+
+    Configs::WeatherConfig config;
 
     for (;;)
     {
         Json json(FileSystem::ReadFile(WEATHER_CONFIG_PATH));
-        auto weatherCity = json[WEATHER_CONFIG_CITY].ToString();
-        auto weatherApiKey = json[WEATHER_CONFIG_APIKEY].ToString();
+        bool isConfigOk = Configs::ConfigFromJson(json, config);
 
-        if (lastCity != weatherCity)
-        {
-            Weather::GetCityCoordinates(coordinates, weatherCity, weatherApiKey);
-            lastCity = weatherCity;
-        }
-
+        bool isWeatherOk = false;
         Weather::CurrentWeaterData currentWeather;
         std::vector<Weather::DailyWeatherData> dailyWeather;
-        auto isOk = Weather::GetWeather(currentWeather, dailyWeather, coordinates, weatherApiKey);
+
+        if (isConfigOk)
+        {
+            if (lastCity != config.city || isCoorOk == false)
+            {
+                isCoorOk = Weather::GetCityCoordinates(coordinates, config.city, config.apiKey);
+                lastCity = config.city;
+            }
+
+            if (isCoorOk)
+            {
+                isWeatherOk = Weather::GetWeather(currentWeather, dailyWeather, coordinates, config.apiKey);
+            }
+            else
+            {
+                currentWeather.description = F("can't get data");
+                currentWeather.imageName = F("abort");
+            }
+        }
+        else
+        {
+            currentWeather.description = F("fail load config");
+            currentWeather.imageName = F("abort");
+        }
 
         MutexTask(screenMutex,
                   {
                       mainScreen->SetWeather(currentWeather);
                   });
 
-        if (isOk == true)
+        if (isWeatherOk == true)
         {
             vTaskDelay(WEATHER_UPDATE_TIME_OK / portTICK_PERIOD_MS);
         }
@@ -385,21 +401,21 @@ void GetTimeTask(void *parameter)
     int failCount = 0;
     bool firstLoad = true;
 
+    Configs::NtpConfig config;
+
     for (;;)
     {
         Json json(FileSystem::ReadFile(TIME_CONFIG_PATH));
-        auto ntpServer = json[TIME_CONFIG_NTP].ToString();
-        auto utc = json[TIME_CONFIG_UTC].ToInt();
+        bool isConfigOk = Configs::ConfigFromJson(json, config);
 
-        bool isOk;
-        auto time = NtpTime::AskNTP(ntpServer, isOk);
+        bool isTimeOk;
+        auto time = NtpTime::AskNTP(config.ntpServer, isTimeOk);
 
-        if (isOk == true)
+        if (isTimeOk && isConfigOk)
         {
             MutexTask(timeMutex,
                       {
-                          myClock.SetUTC(utc);
-                          myClock.ParseFromNtp(time);
+                          myClock.ParseFromNtp(time, config.utc);
                       });
 
             if (failCount != 0 || firstLoad)
