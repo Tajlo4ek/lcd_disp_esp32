@@ -20,6 +20,8 @@
 #include "utils/clock/Clock.h"
 #include "utils/wifi/NtpTime.h"
 
+#include "utils/Touch/Touch.h"
+
 #include "screens/MainScreen.h"
 #include "screens/VisualizerScreen.h"
 
@@ -32,6 +34,7 @@ void UartTask(void *parameter);
 void ParseCommandTask(void *parameter);
 void CheckButtonsTask(void *parameter);
 void ServerTask(void *parameter);
+void TouchTask(void *parameter);
 
 void CreateButtons();
 String CheckCommand(const String &data);
@@ -94,12 +97,11 @@ void setup()
     xTaskCreate(UartTask, String(F("uart rec")).c_str(), 5 * 1024, NULL, 10, NULL);
     xTaskCreate(ParseCommandTask, String(F("command")).c_str(), 10 * 1024, NULL, 10, NULL);
     xTaskCreate(ServerTask, String(F("server")).c_str(), 20 * 1024, NULL, 3, NULL);
+    xTaskCreate(TouchTask, String(F("touch")).c_str(), 2 * 1024, NULL, 5, NULL);
 }
 
 void loop()
 {
-    
-
     vTaskDelete(NULL);
 }
 
@@ -115,21 +117,21 @@ String CheckCommand(const String &data)
     if (data.startsWith(COMMAND_SET_MODE_SPECTRUM) ||
         data.startsWith(COMMAND_SEND_SPECTRUM_DATA))
     {
-        MutexTask(screenMutex,
-                  {
-                      res = visualizerScreen->ParseMessage(data);
-                  });
+        MUTEX_TASK(screenMutex,
+                   {
+                       res = visualizerScreen->ParseMessage(data);
+                   });
     }
     else if (data.startsWith(COMMAND_RELOAD_SCREEN))
     {
-        MutexTask(screenMutex,
-                  {
-                      for (const auto &screen : screens)
-                      {
-                          screen->ReloadConfig();
-                      }
-                      res = COMMAND_OK;
-                  });
+        MUTEX_TASK(screenMutex,
+                   {
+                       for (const auto &screen : screens)
+                       {
+                           screen->ReloadConfig();
+                       }
+                       res = COMMAND_OK;
+                   });
     }
 
     return res;
@@ -137,26 +139,26 @@ String CheckCommand(const String &data)
 
 void SetActiveScreen(int screenNum)
 {
-    MutexTask(screenMutex,
-              {
-                  if (screenNum >= (int)screens.size())
-                  {
-                      screenNum -= screens.size();
-                  }
-                  else if (screenNum < 0)
-                  {
-                      screenNum += screens.size();
-                  }
-                  nowScreenNum = screenNum;
+    MUTEX_TASK(screenMutex,
+               {
+                   if (screenNum >= (int)screens.size())
+                   {
+                       screenNum -= screens.size();
+                   }
+                   else if (screenNum < 0)
+                   {
+                       screenNum += screens.size();
+                   }
+                   nowScreenNum = screenNum;
 
-                  for (auto &screen : screens)
-                  {
-                      screen->SetVisible(false);
-                  }
+                   for (auto &screen : screens)
+                   {
+                       screen->SetVisible(false);
+                   }
 
-                  activeScreen = screens[nowScreenNum];
-                  activeScreen->SetVisible(true);
-              });
+                   activeScreen = screens[nowScreenNum];
+                   activeScreen->SetVisible(true);
+               });
 }
 
 void InitWifi()
@@ -212,10 +214,10 @@ void UartTask(void *parameter)
 
             if (ch == COMMAND_STOP_CHAR)
             {
-                MutexTask(commandQueueMutex,
-                          {
-                              commands.push(serialData);
-                          });
+                MUTEX_TASK(commandQueueMutex,
+                           {
+                               commands.push(serialData);
+                           });
 
                 serialData.clear();
             }
@@ -231,14 +233,14 @@ void ParseCommandTask(void *parameter)
     {
         String data;
 
-        MutexTask(commandQueueMutex,
-                  {
-                      if (commands.empty() == false)
-                      {
-                          data = commands.front();
-                          commands.pop();
-                      }
-                  });
+        MUTEX_TASK(commandQueueMutex,
+                   {
+                       if (commands.empty() == false)
+                       {
+                           data = commands.front();
+                           commands.pop();
+                       }
+                   });
 
         if (data.isEmpty() == false)
         {
@@ -296,10 +298,10 @@ void GetWeatherTask(void *parameter)
 
         if (isWeatherOk || isFirts || failCount > 2)
         {
-            MutexTask(screenMutex,
-                      {
-                          mainScreen->SetWeather(currentWeather);
-                      });
+            MUTEX_TASK(screenMutex,
+                       {
+                           mainScreen->SetWeather(currentWeather);
+                       });
         }
 
         if (isWeatherOk == true)
@@ -319,7 +321,7 @@ void GetWeatherTask(void *parameter)
 
 void GetTimeTask(void *parameter)
 {
-    bool failCount = 0;
+    byte failCount = 0;
     bool firstLoad = true;
 
     Configs::NtpConfig config;
@@ -334,14 +336,19 @@ void GetTimeTask(void *parameter)
 
         if (isTimeOk && isConfigOk)
         {
-            MutexTask(timeMutex,
-                      {
-                          myClock.ParseFromNtp(time, config.utc);
-                          if (failCount != 0 || firstLoad)
-                          {
-                              mainScreen->SetTimeOk(true);
-                          }
-                      });
+            MUTEX_TASK(timeMutex,
+                       {
+                           myClock.ParseFromNtp(time, config.utc);
+                       });
+
+            MUTEX_TASK(screenMutex,
+                       {
+                           if (failCount != 0 || firstLoad)
+                           {
+                               mainScreen->SetTimeOk(true);
+                           }
+                       });
+
             failCount = 0;
 
             vTaskDelay(TIME_UPDATE_TIME_OK / portTICK_PERIOD_MS);
@@ -351,10 +358,10 @@ void GetTimeTask(void *parameter)
             failCount++;
             if (failCount > 5 || firstLoad)
             {
-                MutexTask(screenMutex,
-                          {
-                              mainScreen->SetTimeOk(false);
-                          });
+                MUTEX_TASK(screenMutex,
+                           {
+                               mainScreen->SetTimeOk(false);
+                           });
             }
             vTaskDelay(TIME_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
         }
@@ -369,18 +376,43 @@ void ClockTickTime(void *parameter)
 
     for (;;)
     {
-        MutexTask(timeMutex,
-                  {
-                      auto nowMillis = millis();
-                      myClock.AddMillis(nowMillis - prevMillis);
-                      prevMillis = nowMillis;
+        MUTEX_TASK(timeMutex,
+                   {
+                       auto nowMillis = millis();
+                       myClock.AddMillis(nowMillis - prevMillis);
+                       prevMillis = nowMillis;
 
-                      MutexTask(screenMutex,
-                                {
-                                    mainScreen->SetTime(myClock.GetTime(), myClock.GetDate());
-                                });
-                  });
+                       MUTEX_TASK(screenMutex,
+                                  {
+                                      mainScreen->SetTime(myClock.GetTime(), myClock.GetDate());
+                                  });
+                   });
 
         vTaskDelay(CLOCK_TICK_TIME_MILLISEC / portTICK_PERIOD_MS);
+    }
+}
+
+void TouchTask(void *parameter)
+{
+    Touch::TouchScreen touchScreen(&lcd);
+    Touch::Point touchPoint;
+
+    MUTEX_TASK(screenMutex, {
+        touchScreen.Calibrate();
+    });
+    SetActiveScreen(nowScreenNum);
+
+    while (true)
+    {
+        MUTEX_TASK(screenMutex, {
+            auto isTouched = touchScreen.GetTouch(touchPoint);
+            if (isTouched)
+            {
+                lcd.resetViewport();
+                lcd.drawPixel(touchPoint.x, touchPoint.y, TFT_RED);
+            }
+        });
+
+        vTaskDelay(50 / portTICK_PERIOD_MS);
     }
 }

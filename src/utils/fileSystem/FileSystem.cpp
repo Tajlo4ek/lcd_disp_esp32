@@ -23,7 +23,7 @@ namespace FileSystem
     {
         String data;
 
-        MutexTask(fsMutex,
+        MUTEX_TASK(fsMutex,
                   {
                       if (LITTLEFS.exists(fileName) == true)
                       {
@@ -38,7 +38,7 @@ namespace FileSystem
 
     void WriteFile(const String &fileName, const String &data)
     {
-        MutexTask(fsMutex,
+        MUTEX_TASK(fsMutex,
                   {
                       File file = LITTLEFS.open(fileName, FILE_WRITE);
                       file.print(data.c_str());
@@ -50,7 +50,7 @@ namespace FileSystem
     {
         bool exist;
 
-        MutexTask(fsMutex,
+        MUTEX_TASK(fsMutex,
                   {
                       exist = LITTLEFS.exists(fileName);
                   });
@@ -62,7 +62,7 @@ namespace FileSystem
     {
         File file;
 
-        MutexTask(fsMutex,
+        MUTEX_TASK(fsMutex,
                   {
                       file = LITTLEFS.open(path, mode);
                   });
@@ -74,7 +74,7 @@ namespace FileSystem
     {
         bool deleted;
 
-        MutexTask(fsMutex,
+        MUTEX_TASK(fsMutex,
                   {
                       deleted = LITTLEFS.remove(path);
                   });
