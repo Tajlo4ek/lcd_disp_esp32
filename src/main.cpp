@@ -27,7 +27,7 @@ void InitWifi();
 
 void GetWeatherTask(void *parameter);
 void GetTimeTask(void *parameter);
-void ClockTickTIme(void *parameter);
+void ClockTickTime(void *parameter);
 void UartTask(void *parameter);
 void ParseCommandTask(void *parameter);
 void CheckButtonsTask(void *parameter);
@@ -45,7 +45,6 @@ TFT_eSPI lcd = TFT_eSPI();
 
 #define TIME_UPDATE_TIME_OK 30 * 60 * 1000
 #define TIME_UPDATE_TIME_FAIL 1 * 60 * 1000
-#define TIME_UPDATE_FAIL_COUNT 10
 #define CLOCK_TICK_TIME_MILLISEC 100
 Clock::Clock myClock;
 
@@ -91,7 +90,7 @@ void setup()
 
     xTaskCreate(GetWeatherTask, String(F("update weather")).c_str(), 20 * 1024, NULL, 3, NULL);
     xTaskCreate(GetTimeTask, String(F("update time")).c_str(), 5 * 1024, NULL, 3, NULL);
-    xTaskCreate(ClockTickTIme, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
+    xTaskCreate(ClockTickTime, String(F("set time")).c_str(), 5 * 1024, NULL, 4, NULL);
     xTaskCreate(UartTask, String(F("uart rec")).c_str(), 5 * 1024, NULL, 10, NULL);
     xTaskCreate(ParseCommandTask, String(F("command")).c_str(), 10 * 1024, NULL, 10, NULL);
     xTaskCreate(ServerTask, String(F("server")).c_str(), 20 * 1024, NULL, 3, NULL);
@@ -99,6 +98,8 @@ void setup()
 
 void loop()
 {
+    
+
     vTaskDelete(NULL);
 }
 
@@ -255,6 +256,9 @@ void GetWeatherTask(void *parameter)
     Weather::CityCoordinates coordinates;
     bool isCoorOk = false;
 
+    bool isFirts = true;
+    byte failCount = 0;
+
     Configs::WeatherConfig config;
 
     for (;;)
@@ -290,25 +294,32 @@ void GetWeatherTask(void *parameter)
             currentWeather.imageName = F("abort");
         }
 
-        MutexTask(screenMutex,
-                  {
-                      mainScreen->SetWeather(currentWeather);
-                  });
+        if (isWeatherOk || isFirts || failCount > 2)
+        {
+            MutexTask(screenMutex,
+                      {
+                          mainScreen->SetWeather(currentWeather);
+                      });
+        }
 
         if (isWeatherOk == true)
         {
             vTaskDelay(WEATHER_UPDATE_TIME_OK / portTICK_PERIOD_MS);
+            failCount = 0;
         }
         else
         {
             vTaskDelay(WEATHER_UPDATE_TIME_FAIL / portTICK_PERIOD_MS);
+            failCount++;
         }
+
+        isFirts = false;
     }
 }
 
 void GetTimeTask(void *parameter)
 {
-    int failCount = 0;
+    bool failCount = 0;
     bool firstLoad = true;
 
     Configs::NtpConfig config;
@@ -326,15 +337,11 @@ void GetTimeTask(void *parameter)
             MutexTask(timeMutex,
                       {
                           myClock.ParseFromNtp(time, config.utc);
-                      });
-
-            if (failCount != 0 || firstLoad)
-            {
-                MutexTask(screenMutex,
+                          if (failCount != 0 || firstLoad)
                           {
                               mainScreen->SetTimeOk(true);
-                          });
-            }
+                          }
+                      });
             failCount = 0;
 
             vTaskDelay(TIME_UPDATE_TIME_OK / portTICK_PERIOD_MS);
@@ -342,7 +349,7 @@ void GetTimeTask(void *parameter)
         else
         {
             failCount++;
-            if (failCount > TIME_UPDATE_FAIL_COUNT || firstLoad)
+            if (failCount > 5 || firstLoad)
             {
                 MutexTask(screenMutex,
                           {
@@ -356,7 +363,7 @@ void GetTimeTask(void *parameter)
     }
 }
 
-void ClockTickTIme(void *parameter)
+void ClockTickTime(void *parameter)
 {
     unsigned long prevMillis = millis();
 
